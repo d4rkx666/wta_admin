@@ -1,0 +1,13 @@
+/* Customize pagination dots */
+.swiper-pagination-bullet {
+   background: white !important;
+   opacity: 0.5 !important;
+   width: 12px !important;
+   height: 12px !important;
+   margin: 0 8px !important;
+ }
+ 
+ .swiper-pagination-bullet-active {
+   background: #72b70f !important; /* Your brand green */
+   opacity: 1 !important;
+ }
