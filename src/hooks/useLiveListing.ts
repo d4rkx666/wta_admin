@@ -2,9 +2,12 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
+import { Room } from '@/types/room';
+import { Property } from '@/types/property';
+
 
 export function useLiveDocuments() {
-  const [data, setData] = useState<any[]>([]); // State to hold the documents
+  const [data, setData] = useState<Room[]>([]); // State to hold the documents
   const [loading, setLoading] = useState<boolean>(true); // Loading state to track fetching status
 
   useEffect(() => {
@@ -13,8 +16,7 @@ export function useLiveDocuments() {
       try {
         const querySnapshot = await getDocs(collection(db, "properties"));
         const docs = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
+          ...doc.data() as Property,
         }));
 
         setData(featuredRooms(docs)); // Set the initial data
@@ -30,8 +32,7 @@ export function useLiveDocuments() {
     // Now set up the real-time listener with onSnapshot for live updates
     const unsubscribe = onSnapshot(collection(db, "properties"), (snap) => {
       const updatedDocs = snap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
+        ...doc.data() as Property,
       }));
       setData(featuredRooms(updatedDocs)); // Update the state with live changes
     });
@@ -41,12 +42,12 @@ export function useLiveDocuments() {
   }, []); // Empty dependency array means this runs once when the component mounts
 
   // Append property data into room data
-  const featuredRooms = (featuredRooms:any)=>{
+  const featuredRooms = (featuredRooms:Property[]): Room[] =>{
     const newData = featuredRooms.flatMap(property =>
       property.rooms ? property.rooms.map(rm => ({
          ...rm,
          id_property: property.id || "",
-         roommates: property.rooms.length - 1 || [], // Roommates are the total of rooms not counting the one listing
+         roommates: property.rooms.length - 1 || 0, // Roommates are the total of rooms not counting the one listing
          location: property.location || ""
 
       })) : []

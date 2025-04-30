@@ -1,6 +1,10 @@
-import { Timestamp } from "firebase/firestore";
+import { Room } from "./room";
 
-// types/firestore.ts
+export type GlobalAmenities = {
+  name: string;
+  available: boolean;
+};
+
 export type Property = {
   id: string;
   type: string;
@@ -9,13 +13,6 @@ export type Property = {
   location: string;
   num_shared_washroom: number;
   url_map: string;
-  rooms: [
-    title: string,
-    description: string,
-    price: number,
-    fixed_price: number,
-    private_washroom: boolean,
-    available: boolean,
-    date_availability: Timestamp
-  ]
+  rooms: Room[];
+  global_amenities: GlobalAmenities[]
 };

@@ -7,11 +7,6 @@ class FirestoreService {
     const doc = await docRef.get();
     return doc.exists? doc : null;
   }
-
-  async addDocument(collection: string, data: any): Promise<string> {
-    const docRef = await adminDb.collection(collection).add(data);
-    return docRef.id;
-  }
 }
 
 export const firestoreService = new FirestoreService();

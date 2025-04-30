@@ -18,7 +18,7 @@ export default function HomePage() {
    }
    
    const featuredRooms = data;
-   const featuredRooms2 = [
+   /*const featuredRooms2 = [
       {
          id: "rKoa7qfOWVZgPGlEO53v",
          title: "Modern Downtown Room",
@@ -43,7 +43,7 @@ export default function HomePage() {
          price: 1500,
          rommates: 3,
       },
-   ];
+   ];*/
 
    return (
       <div>
@@ -58,12 +58,12 @@ export default function HomePage() {
             <div className="container mx-auto px-4">
                <div className="text-center mb-12">
                   <h2 className="text-3xl font-bold text-gray-900 mb-4">Featured Rooms</h2>
-                  <p className="text-gray-600 max-w-2xl mx-auto">Browse our selection of premium rooms in Vancouver's best neighborhoods.</p>
+                  <p className="text-gray-600 max-w-2xl mx-auto">Browse our selection of premium rooms in Vancouver&apos;s best neighborhoods.</p>
                </div>
 
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-               {featuredRooms.map(room => (
-                  <RoomCard room={room}/>
+               {featuredRooms.map((room, i) => (
+                  <RoomCard key={i} room={room}/>
                   ))}
                </div>
 
@@ -118,7 +118,7 @@ export default function HomePage() {
          </section>
 
          {/* Testimonials */}
-         <section className="py-16 bg-gray-50">
+         {/*<section className="py-16 bg-gray-50">
             <div className="container mx-auto px-4">
                <div className="text-center mb-12">
                   <h2 className="text-3xl font-bold text-gray-900 mb-4">What Our Clients Say</h2>
@@ -129,14 +129,14 @@ export default function HomePage() {
                   <div className="bg-white p-6 rounded-lg shadow-sm">
                      <div className="flex items-center mb-4">
                         <div className="w-12 h-12 rounded-full overflow-hidden mr-4">
-                           <img src="https://randomuser.me/api/portraits/women/32.jpg" alt="Sarah J." className="w-full h-full object-cover" />
+                           <Image src="https://randomuser.me/api/portraits/women/32.jpg" alt="Sarah J." fill className="w-full h-full object-cover" />
                         </div>
                         <div>
                            <h4 className="font-semibold">Sarah J.</h4>
                            <p className="text-gray-600 text-sm">Student at UBC</p>
                         </div>
                      </div>
-                     <p className="text-gray-700">"Found my perfect room in Kitsilano within days of searching. The process was so easy and the Vancouver Rooms team was incredibly helpful!"</p>
+                     <p className="text-gray-700">&quot;Found my perfect room in Kitsilano within days of searching. The process was so easy and the Vancouver Rooms team was incredibly helpful!&quot;</p>
                      <div className="flex mt-4 text-yellow-400">
                         {[...Array(5)].map((_, i) => (
                            <svg key={i} xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -149,14 +149,14 @@ export default function HomePage() {
                   <div className="bg-white p-6 rounded-lg shadow-sm">
                      <div className="flex items-center mb-4">
                         <div className="w-12 h-12 rounded-full overflow-hidden mr-4">
-                           <img src="https://randomuser.me/api/portraits/men/45.jpg" alt="Michael T." className="w-full h-full object-cover" />
+                           <Image src="https://randomuser.me/api/portraits/men/45.jpg" alt="Michael T." className="w-full h-full object-cover" />
                         </div>
                         <div>
                            <h4 className="font-semibold">Michael T.</h4>
                            <p className="text-gray-600 text-sm">Professional</p>
                         </div>
                      </div>
-                     <p className="text-gray-700">"Moving to Vancouver for work was stressful, but Vancouver Rooms made finding a place easy. My downtown room is perfect for my commute."</p>
+                     <p className="text-gray-700">&quot;Moving to Vancouver for work was stressful, but Vancouver Rooms made finding a place easy. My downtown room is perfect for my commute.&quot;</p>
                      <div className="flex mt-4 text-yellow-400">
                         {[...Array(5)].map((_, i) => (
                            <svg key={i} xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -169,14 +169,14 @@ export default function HomePage() {
                   <div className="bg-white p-6 rounded-lg shadow-sm">
                      <div className="flex items-center mb-4">
                         <div className="w-12 h-12 rounded-full overflow-hidden mr-4">
-                           <img src="https://randomuser.me/api/portraits/women/68.jpg" alt="Emma L." className="w-full h-full object-cover" />
+                           <Image src="https://randomuser.me/api/portraits/women/68.jpg" alt="Emma L." className="w-full h-full object-cover" />
                         </div>
                         <div>
                            <h4 className="font-semibold">Emma L.</h4>
                            <p className="text-gray-600 text-sm">Digital Nomad</p>
                         </div>
                      </div>
-                     <p className="text-gray-700">"As someone who moves frequently, I appreciate how Vancouver Rooms understands the needs of temporary residents. My West End room is perfect!"</p>
+                     <p className="text-gray-700">&quot;As someone who moves frequently, I appreciate how Vancouver Rooms understands the needs of temporary residents. My West End room is perfect!&quot;</p>
                      <div className="flex mt-4 text-yellow-400">
                         {[...Array(4)].map((_, i) => (
                            <svg key={i} xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -190,7 +190,7 @@ export default function HomePage() {
                   </div>
                </div>
             </div>
-         </section>
+         </section>*/}
 
          {/* CTA Section */}
          <section className="py-16 bg-gradient-to-r from-blue-600 to-red-600 text-white">

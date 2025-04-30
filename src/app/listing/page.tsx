@@ -5,19 +5,6 @@ import { RoomCard } from '../components/RoomCard';
 import { useLiveDocuments } from '@/hooks/useLiveListing';
 import Loader from '../components/common/Loader';
 
-// Mock data type - replace with your actual room type
-type Room = {
-   id: string;
-   title: string;
-   location: string;
-   price: number;
-   image: string;
-   size: string;
-   roommates: number;
-   privateWashroom: boolean;
-   availableFrom: string;
-};
-
 const RoomListing = () => {
    // State for filters
    const [priceRange, setPriceRange] = useState<[number, number]>([800, 5000]);
@@ -32,7 +19,7 @@ const RoomListing = () => {
    const rooms = data;
 
    // Filter rooms based on selected filters
-   const filteredRooms = rooms.filter(room => {
+   const filteredRooms = rooms ? rooms.filter(room => {
       // Price range filter
       if (room.price < priceRange[0] || room.price > priceRange[1]) return false;
 
@@ -46,10 +33,10 @@ const RoomListing = () => {
       }
 
       return true;
-   });
+   }):[];
 
    // Available neighborhoods
-   const neighborhoods = Array.from(new Set(rooms.map(room => room.location.split(',')[0])));
+   const neighborhoods = rooms ? Array.from(new Set(rooms.map(room => room.location.split(',')[0]))) : [];
 
    return (
       <div className="container mx-auto px-4 py-8">
@@ -151,7 +138,7 @@ const RoomListing = () => {
          {filteredRooms.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                {filteredRooms.map(room => (
-                  <RoomCard room={room} />
+                  <RoomCard key={room.id} room={room} />
                ))}
             </div>
          ) : (

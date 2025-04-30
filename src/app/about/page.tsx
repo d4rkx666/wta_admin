@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 
 export default function AboutPage() {
   return (
@@ -17,7 +18,7 @@ export default function AboutPage() {
             priority
           />
           <figcaption>
-            Photo by <a href="https://unsplash.com/@jeshoots?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">JESHOOTS.COM</a> on <a href="https://unsplash.com/photos/an-open-empty-notebook-on-a-white-desk-next-to-an-iphone-and-a-macbook-pUAM5hPaCRI?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Unsplash</a>
+            Photo by <Link href="https://unsplash.com/@jeshoots?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">JESHOOTS.COM</Link> on <Link href="https://unsplash.com/photos/an-open-empty-notebook-on-a-white-desk-next-to-an-iphone-and-a-macbook-pUAM5hPaCRI?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Unsplash</Link>
           </figcaption>
         </figure>
         <div className="absolute inset-0 flex items-center justify-center">
@@ -88,7 +89,7 @@ export default function AboutPage() {
             <div>
               <p className="text-lg text-gray-600 mb-6">
                 Welcome Travel Accommodation was established in 2020 with a vision to provide exceptional room 
-                rentals in one of the most captivating cities in the world. Inspired by Vancouver's unique charm 
+                rentals in one of the most captivating cities in the world. Inspired by Vancouver&apos;s unique charm 
                 and vibrant lifestyle, we set out to offer a service that combines quality accommodations with 
                 the warmth and hospitality that the city is known for.
               </p>
@@ -108,7 +109,7 @@ export default function AboutPage() {
                   className="object-cover"
                 />
                 <figcaption>
-                  Photo by <a href="https://unsplash.com/@tfrants?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Tyler Franta</a> on <a href="https://unsplash.com/photos/person-using-laptop-on-white-wooden-table-iusJ25iYu1c?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Unsplash</a>
+                  Photo by <Link href="https://unsplash.com/@tfrants?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Tyler Franta</Link> on <Link href="https://unsplash.com/photos/person-using-laptop-on-white-wooden-table-iusJ25iYu1c?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Unsplash</Link>
                 </figcaption>
               </figure>
             </div>
@@ -123,12 +124,12 @@ export default function AboutPage() {
           <p className="text-xl mb-8">
             Ready to find your perfect home away from home in beautiful Vancouver?
           </p>
-          <a
+          <Link
             href="/"
             className="inline-block bg-blue-200 px-8 py-3 rounded-md font-medium hover:bg-blue-100 transition-colors text-lg"
           >
             Browse Available Rooms
-          </a>
+          </Link>
         </div>
       </section>
     </div>
