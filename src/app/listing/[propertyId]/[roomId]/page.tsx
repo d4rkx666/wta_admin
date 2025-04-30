@@ -1,5 +1,4 @@
 "use client"
-import {useRouter} from "next/navigation";
 import { useParams } from "next/navigation";
 import Carousel from "../../../components/common/Carousel"
 import { useDetailRoom } from "@/hooks/useDetailRoom";
@@ -10,9 +9,6 @@ import Link from "next/link";
 const RoomDetail = () => {
   const { propertyId, roomId }= useParams<{propertyId: string;roomId: string;}>();
   const {data, loading} = useDetailRoom(propertyId, roomId)
-  
-  // Navigation
-  const router = useRouter();
 
   if (loading || !data) {
     return <Loader />;
