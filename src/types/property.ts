@@ -1,9 +1,5 @@
+import { Amenity } from "./amenity";
 import { Room } from "./room";
-
-export type GlobalAmenities = {
-  name: string;
-  available: boolean;
-};
 
 export type Property = {
   id: string;
@@ -14,5 +10,19 @@ export type Property = {
   num_shared_washroom: number;
   url_map: string;
   rooms: Room[];
-  global_amenities: GlobalAmenities[]
+  enabled: boolean;
+  global_amenities: Amenity[]
 };
+
+export const PropertyDefaultVal = ():Property => ({
+  id: "",
+  type: "",
+  title: "",
+  description: "",
+  location: "",
+  num_shared_washroom: 0,
+  url_map: "",
+  rooms: [],
+  enabled: true,
+  global_amenities: [],
+})

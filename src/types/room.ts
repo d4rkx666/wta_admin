@@ -1,20 +1,13 @@
 import { Timestamp } from "firebase/firestore";
-
-export type Amenity = {
-  name: string;
-  available: boolean;
-}
+import { Amenity } from "./amenity";
 
 export type Room= {
   id: string;
-  id_property: string;
+  room_number: number;
   title: string;
-  location: string;
-  url_map: string;
   thumbnail: string;
   price: number;
-  furnished: boolean;
-  roommates: number;
+  fixed_price: number;
   images: [];
   available: boolean;
   date_availability: Timestamp;
