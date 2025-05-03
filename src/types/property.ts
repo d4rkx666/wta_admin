@@ -14,7 +14,7 @@ export type Property = {
   global_amenities: Amenity[]
 };
 
-export const PropertyDefaultVal = ():Property => ({
+export const PropertyDefaultVal:Property = {
   id: "",
   type: "",
   title: "",
@@ -25,4 +25,4 @@ export const PropertyDefaultVal = ():Property => ({
   rooms: [],
   enabled: true,
   global_amenities: [],
-})
+}

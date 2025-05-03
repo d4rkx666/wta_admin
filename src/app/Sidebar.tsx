@@ -48,7 +48,6 @@ export default function Sidebar() {
       current: pathname.startsWith('/property'),
       children: [
         { name: 'Property Management', href: '/property' },
-        { name: 'Room Management', href: '/property/room' },
       ],
     },
   ];

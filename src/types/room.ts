@@ -1,6 +1,11 @@
 import { Timestamp } from "firebase/firestore";
 import { Amenity } from "./amenity";
 
+type Images = {
+  id: string;
+  url: string;
+}
+
 export type Room= {
   id: string;
   room_number: number;
@@ -8,10 +13,25 @@ export type Room= {
   thumbnail: string;
   price: number;
   fixed_price: number;
-  images: [];
+  images: Images[];
   available: boolean;
   date_availability: Timestamp;
   private_washroom: boolean;
   description: string;
   specific_amenities: Amenity[]
 }
+
+export const RoomDefaultVal: Room = {
+    id: '',
+    room_number: 0,
+    title: '',
+    thumbnail: '',
+    price: 0,
+    fixed_price: 0,
+    images: [],
+    available: true,
+    date_availability: Timestamp.now(),
+    private_washroom: false,
+    description: '',
+    specific_amenities: [],
+  }

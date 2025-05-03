@@ -6,6 +6,8 @@ import { Amenity } from '@/types/amenity';
 import { useLiveDocuments } from '@/hooks/useLiveListing';
 import { set_property } from '@/hooks/setProperty';
 import Link from 'next/link';
+import ModalConfirmation from '../components/common/ModalConfirmation';
+import { RoomDefaultVal } from '@/types/room';
 
 export default function PropertyManagementPage() {
    const [properties, setProperties] = useState<Property[]>([]);
@@ -21,7 +23,7 @@ export default function PropertyManagementPage() {
    const [isModalOpen, setIsModalOpen] = useState(false);
    const [isModalConfirmOpen, setIsModalConfirmOpen] = useState(false);
    const [isLoading, setIsLoading] = useState(false);
-   const [currentProperty, setCurrentProperty] = useState<Property>(PropertyDefaultVal());
+   const [currentProperty, setCurrentProperty] = useState<Property>(PropertyDefaultVal);
    const [showFilters, setShowFilters] = useState(false);
 
    const { data, loading } = useLiveDocuments();
@@ -81,7 +83,7 @@ export default function PropertyManagementPage() {
          setIsLoading(true);
          let response = undefined;
          const form = e.target as HTMLFormElement;
-         const propertyToInsert = PropertyDefaultVal();
+         const propertyToInsert = PropertyDefaultVal;
 
          propertyToInsert.type = (form.elements.namedItem('type') as HTMLInputElement).value;
          propertyToInsert.title = (form.elements.namedItem('title') as HTMLInputElement).value;
@@ -107,7 +109,7 @@ export default function PropertyManagementPage() {
       } catch (err) {
          console.log(String(err));
       } finally {
-         setCurrentProperty(PropertyDefaultVal());
+         setCurrentProperty(PropertyDefaultVal);
          setIsLoading(false);
       }
    }
@@ -123,7 +125,7 @@ export default function PropertyManagementPage() {
       } catch (err) {
          console.log(String(err));
       } finally {
-         setCurrentProperty(PropertyDefaultVal());
+         setCurrentProperty(PropertyDefaultVal);
          setIsLoading(false);
       }
    }
@@ -169,7 +171,7 @@ export default function PropertyManagementPage() {
                </button>
                <button
                   type="button"
-                  onClick={() => { setIsModalOpen(true); setCurrentProperty(PropertyDefaultVal()) }}
+                  onClick={() => { setIsModalOpen(true); setCurrentProperty(PropertyDefaultVal) }}
                   className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                >
                   <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
@@ -660,68 +662,12 @@ export default function PropertyManagementPage() {
 
          {/* Delete Confirmation Modal */}
          {isModalConfirmOpen && (
-            <div className="fixed inset-0 z-50 overflow-y-auto">
-               <div
-                  className="fixed inset-0 bg-gray-600/70 transition-opacity"
-                  aria-hidden="true"
-                  onClick={() => setIsModalConfirmOpen(false)}
-               ></div>
-
-               <div className="flex min-h-screen items-center justify-center p-4 text-center">
-                  <div className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all w-full max-w-2xl">
-                     <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4">
-                        <div className="flex items-center justify-between">
-                           <h3 className="text-lg font-semibold text-white">
-                              Confirmation
-                           </h3>
-                           <button
-                              type="button"
-                              className="rounded-md p-1 text-white hover:bg-blue-500 focus:outline-none"
-                              onClick={() => setIsModalConfirmOpen(false)}
-                           >
-                              <XMarkIcon className="h-6 w-6" />
-                           </button>
-                        </div>
-                     </div>
-
-                     <div className="px-6 py-5">
-                        <div className="space-y-4 text-center text-red-600">
-                           <p className='text-lg'>Are you sure you want to delete this property?</p>
-                           {currentProperty.rooms.length > 0 && (
-                              <>
-                                 <p className='text-sm'>Deleting this room will also delete the following rooms linked to this property:</p>
-                                 {currentProperty.rooms.map((r, i) => (
-                                    <p key={i}>Room {r.room_number}</p>
-                                 ))}
-                              </>
-                           )}
-                        </div>
-
-                        <div className="mt-6 flex justify-center space-x-3">
-                           <button
-                              type="button"
-                              onClick={() => setIsModalConfirmOpen(false)}
-                              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                           >
-                              Cancel
-                           </button>
-                           <button
-                              type="button"
-                              disabled={isLoading}
-                              onClick={handleDelProperty}
-                              className="inline-flex items-center rounded-lg border border-transparent bg-yellow-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-blue-300"
-                           >
-                              {isLoading ? (
-                                 "Deleting..."
-                              ) : (
-                                 "I want to delete this property"
-                              )}
-                           </button>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
+            <ModalConfirmation
+            setIsModalConfirmOpen={setIsModalConfirmOpen}
+            handleDelProperty={handleDelProperty}
+            currentProperty={currentProperty}
+            currentRoom={RoomDefaultVal}
+            isLoading={isLoading}/>
          )}
       </div>
    );

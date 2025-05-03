@@ -5,17 +5,20 @@ import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: Request) {
-  const { data } : {data: Property} = await req.json();
+  const data: Property = await req.json();
 
   try {
-   if(data.id == ""){
+    let { rooms, ...propertyWithoutRooms } = data;
+    if (data.id == "") {
       data.id = uuidv4();
-   }
-   await firestoreService.setDocument("properties", data.id, data)
-   return NextResponse.json({ success: true });
+      propertyWithoutRooms = data
+    }
+    
+    await firestoreService.setDocument("properties", data.id, propertyWithoutRooms)
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(
-      { error: 'Failed to update document' },
+      { error: String(error) },
       { status: 500 }
     );
   }
