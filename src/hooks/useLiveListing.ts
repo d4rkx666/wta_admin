@@ -19,10 +19,10 @@ export function useLiveDocuments() {
         }));
 
         setData(docs); // Set the initial data
-        setLoading(false); // Data is now loaded
       } catch (error) {
         console.error("Error fetching documents:", error);
-        setLoading(false); // Stop loading even if there's an error
+      }finally{
+        setLoading(false);
       }
     };
 

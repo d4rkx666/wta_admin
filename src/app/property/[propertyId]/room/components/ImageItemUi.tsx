@@ -1,11 +1,13 @@
 import { ImageItem } from "@/types/imageItem";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from '@dnd-kit/utilities';
+import Image from "next/image";
 
-export default function ImageItemUI({ image, isThumbnail, onSetThumbnail, onDelete, onRestore }: {
+export default function ImageItemUI({ image, isThumbnail, onSetThumbnail, onHandleThumbnail, onDelete, onRestore }: {
    image: ImageItem;
    isThumbnail: boolean;
    onSetThumbnail: () => void;
+   onHandleThumbnail: (id: string) => void;
    onDelete: (id: string) => void;
    onRestore: (id: string) => void;
  }) {
@@ -45,10 +47,11 @@ export default function ImageItemUI({ image, isThumbnail, onSetThumbnail, onDele
  
        {/* Image Container - No drag handlers here */}
        <div className="w-full h-32">
-         <img
+         <Image
            src={image.url}
            alt="Room preview"
            className="w-full h-full object-cover"
+           fill
            onError={(e) => {
              (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
            }}
@@ -69,7 +72,9 @@ export default function ImageItemUI({ image, isThumbnail, onSetThumbnail, onDele
                onClick={(e) => {
                  e.stopPropagation();
                  onSetThumbnail();
+                 onHandleThumbnail(image.id);
                }}
+               type="button"
                className="bg-white/80 hover:bg-white p-1 rounded-full shadow-sm z-10"
                title="Set as thumbnail"
              >
@@ -85,6 +90,7 @@ export default function ImageItemUI({ image, isThumbnail, onSetThumbnail, onDele
                  e.stopPropagation();
                  onRestore(image.id);
                }}
+               type="button"
                className="bg-white/80 hover:bg-white p-1 rounded-full shadow-sm z-10"
                title="Restore image"
              >
@@ -98,6 +104,7 @@ export default function ImageItemUI({ image, isThumbnail, onSetThumbnail, onDele
                  e.stopPropagation();
                  onDelete(image.id);
                }}
+               type="button"
                className="bg-white/80 hover:bg-white p-1 rounded-full shadow-sm z-10"
                title="Delete image"
              >

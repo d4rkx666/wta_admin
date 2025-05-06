@@ -1,21 +1,18 @@
 'use client'
 
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { Room } from '@/types/room';
 import { Property } from '@/types/property';
+import Image from 'next/image';
 
-export function RoomCard({ property, room, onEdit, onDelete }: { property: Property, room: Room; onEdit: () => void; onDelete: () => void }) 
-{
-  const router = useRouter();
-  console.log(room.thumbnail)
+export function RoomCard({ property, room, onEdit, onDelete }: { property: Property, room: Room; onEdit: () => void; onDelete: () => void }) {
   
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden transition transform hover:-translate-y-2">
       <div className="relative w-full h-60">
-        <img 
+        <Image 
           src={room.thumbnail || room.images[0].url}
           alt={room.title}
+          fill
           className="w-full h-full object-cover"
         />
         <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-medium">

@@ -7,18 +7,21 @@ import { RoomCard } from '@/app/components/RoomCard';
 import { Room, RoomDefaultVal } from '@/types/room';
 import RoomImageModal from './components/RoomImageModal';
 import { set_room } from '@/hooks/setRoom';
+import { del_room } from '@/hooks/delRoom';
 import { ImageItem } from '@/types/imageItem';
 import ModalConfirmation from '@/app/components/common/ModalConfirmation';
 import { PropertyDefaultVal } from '@/types/property';
+import { useNotification } from '@/app/context/NotificationContext';
 
 
 export default function RoomListing() {
+  const {showNotification} = useNotification();
   const { propertyId } = useParams<{ propertyId: string }>();
   const { data, loading } = useProperty(propertyId);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<Room>(RoomDefaultVal);
   const [isModalConfirmOpen,setIsModalConfirmOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
 
   if (loading) {
     return <Loader />;
@@ -40,15 +43,21 @@ export default function RoomListing() {
     try {
       // Convert blob URLs to actual files only when img DOESN'T EXISTS
       const files = await Promise.all(
-        images.filter(img => !img.isExisting).map(async (img) => {
+        images.map(async (img) => {
           const response = await fetch(img.url);
           const blob = await response.blob();
           return {
-            id: img.id,
+            img: img,
             file: new File([blob], `image-${img.id}.jpg`, { type: blob.type })
           };
         })
       );
+
+      if(files.length == 0){
+        showNotification("error", "Please add at least one image.");
+        return;
+      }
+
 
       // Prepare FormData
       const formData = new FormData();
@@ -59,15 +68,21 @@ export default function RoomListing() {
       formData.append('propertyId', propertyId);
 
       // insert images
-      files.forEach(({ id, file }) => {
+      files.forEach(({ img, file }) => {
         formData.append('images[]', file);
-        formData.append('ids', id); // Keep track of original IDs
+        formData.append('img[]', JSON.stringify(img));
       });
 
       //console.log('Saving room:', roomData, "and images:",images);
       const response = await set_room(formData);
 
-      //return await response.json();
+      const data = await response.json();
+      if(data.success){
+        showNotification('success', 'Room form submitted successfully!');
+        setIsModalOpen(false)
+      }else{
+        showNotification('error', 'Something went wrong... Please check all the form data and try again.');
+      }
     } catch (error) {
       console.error('Upload failed:', error);
       throw error;
@@ -77,7 +92,14 @@ export default function RoomListing() {
   };
 
   const handleDelProperty = async()=>{
-
+    try {
+      await del_room({property: property, room:currentRoom});
+    } catch (error) {
+      console.error('Upload failed:', error);
+    }finally{
+      setIsModalConfirmOpen(false);
+      setCurrentRoom(RoomDefaultVal);
+    }
   }
 
   return (
@@ -101,7 +123,7 @@ export default function RoomListing() {
               property={property}
               room={room}
               onEdit={() => openEditModal(room)}
-              onDelete={() => setIsModalConfirmOpen(true)}
+              onDelete={() => {setIsModalConfirmOpen(true); setCurrentRoom(room)}}
             />
           ))}
 

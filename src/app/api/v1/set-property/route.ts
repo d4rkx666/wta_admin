@@ -8,6 +8,7 @@ export async function POST(req: Request) {
   const data: Property = await req.json();
 
   try {
+    // eslint-disable-next-line
     let { rooms, ...propertyWithoutRooms } = data;
     if (data.id == "") {
       data.id = uuidv4();

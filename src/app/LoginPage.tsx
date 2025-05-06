@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { LockClosedIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
@@ -11,7 +10,6 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,35 +17,10 @@ export default function AdminLogin() {
     setError('');
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      // Optional: Verify admin status (you might check Firestore here)
-      // const doc = await getDoc(doc(db, 'admins', user.uid));
-      // if (!doc.exists()) throw new Error('Not authorized');
-      
-      router.push('/admin/dashboard');
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
-      setError(getFirebaseError(err));
+      setError(String(err));
       setLoading(false);
-    }
-  };
-
-  // Helper to convert Firebase errors to user-friendly messages
-  const getFirebaseError = (error: any) => {
-    switch (error.code) {
-      case 'auth/invalid-email':
-        return 'Invalid email address';
-      case 'auth/user-disabled':
-        return 'Account disabled';
-      case 'auth/user-not-found':
-        return 'Account not found';
-      case 'auth/wrong-password':
-        return 'Incorrect password';
-      case 'auth/too-many-requests':
-        return 'Too many attempts. Try again later';
-      default:
-        return 'Login failed. Please try again';
     }
   };
 

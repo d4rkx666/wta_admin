@@ -2,7 +2,7 @@ import { Property } from "@/types/property"
 import { Room } from "@/types/room"
 import { XMarkIcon } from "@heroicons/react/24/outline"
 
-const ModalConfirmation = ({setIsModalConfirmOpen, handleDelProperty, currentProperty, currentRoom, isLoading}:{setIsModalConfirmOpen: (arg0:boolean)=>void, handleDelProperty: ()=>void, currentProperty: Property, currentRoom: Room, isLoading: boolean}) =>{
+const ModalConfirmation = ({setIsModalConfirmOpen, handleDelProperty, currentProperty, isLoading}:{setIsModalConfirmOpen: (arg0:boolean)=>void, handleDelProperty: ()=>void, currentProperty: Property, currentRoom: Room, isLoading: boolean}) =>{
 
    return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -56,7 +56,7 @@ const ModalConfirmation = ({setIsModalConfirmOpen, handleDelProperty, currentPro
                         type="button"
                         disabled={isLoading}
                         onClick={handleDelProperty}
-                        className="inline-flex items-center rounded-lg border border-transparent bg-yellow-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-blue-300"
+                        className="inline-flex items-center rounded-lg border border-transparent bg-yellow-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-yellow-300"
                      >
                         {isLoading ? (
                            "Deleting..."

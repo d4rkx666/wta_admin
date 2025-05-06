@@ -1,6 +1,7 @@
 import { adminDb } from '../firebase/admin';
-import { DocumentData, FieldValue } from 'firebase-admin/firestore';
+import { DocumentData } from 'firebase-admin/firestore';
 
+/* eslint-disable */
 class FirestoreService {
   async getDocument(collection: string, docId: string): Promise<DocumentData | null> {
     const docRef = adminDb.collection(collection).doc(docId);
@@ -44,6 +45,12 @@ class FirestoreService {
     const docRef = adminDb.collection(collection).doc(docId);
     await docRef.delete();
   }
+
+  async updateDocument(collection: string, docId: string, fieldName: string, data: Object): Promise<void> {
+    const docRef = adminDb.collection(collection).doc(docId);
+    await docRef.update({ [fieldName]: data });
+  }
 }
+/* eslint-enable */
 
 export const firestoreService = new FirestoreService();

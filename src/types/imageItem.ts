@@ -4,4 +4,5 @@ export type ImageItem = {
    file?: File;
    isExisting?: boolean;
    isMarkedForDeletion?: boolean;
+   isThumbnail?: boolean
  };

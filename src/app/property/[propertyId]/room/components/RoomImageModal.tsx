@@ -3,17 +3,19 @@ import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { Room, RoomDefaultVal } from '@/types/room';
+import { Room } from '@/types/room';
 import { ImageItem } from '@/types/imageItem';
 import ImageItemUI from './ImageItemUi';
 import { XMarkIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import { Amenity } from '@/types/amenity';
+import { useGlobalVariables } from '@/app/context/VariableContext';
 
 export default function RoomImageModal({ room, onClose, onSave }: {
   room: Room;
   onClose: () => void;
   onSave: (data: Room, images: ImageItem[]) => Promise<void>;
 }) {
+  const {listSpecificAmenities} = useGlobalVariables()
   const [images, setImages] = useState<ImageItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedThumbnail, setSelectedThumbnail] = useState('');
@@ -25,7 +27,8 @@ export default function RoomImageModal({ room, onClose, onSave }: {
         id: img.id,
         url: img.url,
         isExisting: true,
-        isMarkedForDeletion: false
+        isMarkedForDeletion: false,
+        isThumbnail: false
       }));
       setImages(existingImages);
       setSelectedThumbnail(room.thumbnail);
@@ -37,7 +40,8 @@ export default function RoomImageModal({ room, onClose, onSave }: {
       id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       url: URL.createObjectURL(file),
       file,
-      isExisting: false
+      isExisting: false,
+      isThumbnail: false
     }));
 
     setImages(prev => [...prev, ...newImages]);
@@ -62,6 +66,17 @@ export default function RoomImageModal({ room, onClose, onSave }: {
     )
   };
 
+  const handleThumbnailImage = (id: string) => {
+    setImages(prev =>
+      prev.map(img =>
+        img.id === id && !img.isMarkedForDeletion
+          ? { ...img, isThumbnail: true }
+          : img
+      )
+    )
+    console.log(images,id)
+  };
+
   const handleRestoreImage = (id: string) => {
     setImages(prev =>
       prev.map(img =>
@@ -79,6 +94,7 @@ export default function RoomImageModal({ room, onClose, onSave }: {
     })
   );
 
+  // eslint-disable-next-line
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
     if (active.id !== over.id) {
@@ -93,7 +109,6 @@ export default function RoomImageModal({ room, onClose, onSave }: {
   const handleSave = async ({roomToInsert}:{roomToInsert:Room}) => {
   
     const updatedImages = images
-    .filter(img => !img.isMarkedForDeletion)
     .map(img => ({
       id: img.id,
       url: img.url,
@@ -101,7 +116,6 @@ export default function RoomImageModal({ room, onClose, onSave }: {
     }))
 
     setImages(updatedImages)
-    console.log(images, "images")
     await onSave(roomToInsert, images);
   };
 
@@ -181,7 +195,7 @@ export default function RoomImageModal({ room, onClose, onSave }: {
                       required
                       defaultValue={room.title}
                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border peer"
-                      placeholder="Sunshine Apartments"
+                      placeholder="Beautiful rooom in Downtown"
                     />
                     <p className="mt-1 text-xs text-red-600 invisible peer-invalid:visible">
                       This field is required
@@ -265,7 +279,7 @@ export default function RoomImageModal({ room, onClose, onSave }: {
                     required
                     defaultValue={room.description}
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border peer"
-                    placeholder="Describe the property features and amenities..."
+                    placeholder="Describe the room..."
                   />
                   <p className="mt-1 text-xs text-red-600 invisible peer-invalid:visible">
                     This field is required
@@ -286,7 +300,7 @@ export default function RoomImageModal({ room, onClose, onSave }: {
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Amenities</h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {['Parking', 'Laundry', 'Gym', 'Pool', 'Elevator', 'Security'].map((amenity, i) => (
+                    {listSpecificAmenities.map((amenity, i) => (
                       <div key={i} className="flex items-center">
                         <input
                           id={`amenity-${amenity}`}
@@ -335,6 +349,7 @@ export default function RoomImageModal({ room, onClose, onSave }: {
                         image={image}
                         isThumbnail={selectedThumbnail === image.url}
                         onSetThumbnail={() => setSelectedThumbnail(image.url)}
+                        onHandleThumbnail={handleThumbnailImage}
                         onDelete={handleDeleteImage}
                         onRestore={handleRestoreImage}
                       />

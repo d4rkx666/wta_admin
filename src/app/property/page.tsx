@@ -5,11 +5,17 @@ import { Property, PropertyDefaultVal } from '@/types/property';
 import { Amenity } from '@/types/amenity';
 import { useLiveDocuments } from '@/hooks/useLiveListing';
 import { set_property } from '@/hooks/setProperty';
+import { del_property } from '@/hooks/delProperty';
 import Link from 'next/link';
 import ModalConfirmation from '../components/common/ModalConfirmation';
 import { RoomDefaultVal } from '@/types/room';
+import Loader from '../components/common/Loader';
+import { useNotification } from "@/app/context/NotificationContext"
+import { useGlobalVariables } from '../context/VariableContext';
 
 export default function PropertyManagementPage() {
+   const { showNotification } = useNotification();
+   const {listGlobalAmenities} = useGlobalVariables()
    const [properties, setProperties] = useState<Property[]>([]);
    const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
    const [currentPage, setCurrentPage] = useState(1);
@@ -26,7 +32,7 @@ export default function PropertyManagementPage() {
    const [currentProperty, setCurrentProperty] = useState<Property>(PropertyDefaultVal);
    const [showFilters, setShowFilters] = useState(false);
 
-   const { data, loading } = useLiveDocuments();
+   const { data, loading } = useLiveDocuments(); // Get Properties
 
    useEffect(() => {
       setProperties(data);
@@ -104,8 +110,14 @@ export default function PropertyManagementPage() {
          propertyToInsert.global_amenities = selectedAmenities;
          propertyToInsert.id = currentProperty.id != "" ? currentProperty.id : "";
          response = await set_property(propertyToInsert);
-
-         setIsModalOpen(false);
+         
+         const data = await response.json();
+         if (data.success) {
+            showNotification('success', 'Property form submitted successfully!');
+            setIsModalOpen(false);
+         }else{
+            showNotification('error', 'Something went wrong... Please check all the form data and try again.');
+         }
       } catch (err) {
          console.log(String(err));
       } finally {
@@ -118,10 +130,15 @@ export default function PropertyManagementPage() {
       try {
          setIsLoading(true);
          const deleteProperty = currentProperty;
-         deleteProperty.enabled = false;
-         const response = await set_property(deleteProperty);
+         const response = await del_property(deleteProperty);
 
-         setIsModalConfirmOpen(false);
+         const data = await response.json();
+         if (data.success) {
+            showNotification('success', 'Property deleted successfully!');
+            setIsModalConfirmOpen(false);
+         }else{
+            showNotification('error', 'Something went wrong... Please check all the form data and try again.');
+         }
       } catch (err) {
          console.log(String(err));
       } finally {
@@ -150,6 +167,12 @@ export default function PropertyManagementPage() {
    const allAmenities = Array.from(new Set(
       properties.flatMap(p => p.global_amenities.map(a => a.name))
    ));
+
+   
+
+   if (loading) {
+      return <Loader />;
+   }
 
    return (
       <div className="px-4 sm:px-6 lg:px-8 py-8">
@@ -614,7 +637,7 @@ export default function PropertyManagementPage() {
                               <div>
                                  <h4 className="text-sm font-medium text-gray-700 mb-2">Amenities</h4>
                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    {['Parking', 'Laundry', 'Gym', 'Pool', 'Elevator', 'Security'].map((amenity) => (
+                                    {listGlobalAmenities.map((amenity) => (
                                        <div key={amenity} className="flex items-center">
                                           <input
                                              id={`amenity-${amenity}`}
