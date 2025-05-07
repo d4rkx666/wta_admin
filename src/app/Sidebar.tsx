@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
-export default function Sidebar() {
+export default function Sidebar({className}:{className?: string}) {
   const pathname = usePathname();
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
@@ -38,7 +38,7 @@ export default function Sidebar() {
       icon: CreditCardIcon,
       current: pathname.startsWith('/bills'),
       children: [
-        { name: 'Bills Overview', href: '/bills' },
+        { name: 'Bills Overview', href: '/bills/management' },
         { name: 'Tenant Bills', href: '/bills/tenant-bills' },
       ],
     },
@@ -64,7 +64,7 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col">
+    <div className={className}>
       <div className="flex min-h-0 flex-1 flex-col border-r border-gray-200 bg-white">
         <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
           <nav className="flex-1 space-y-1 px-2">
