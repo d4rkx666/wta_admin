@@ -5,7 +5,6 @@ import Footer from "./Footer";
 import Sidebar from "./Sidebar";
 import { NotificationProvider } from "./context/NotificationContext";
 import { GlobalVarProvider } from "./context/VariableContext";
-import { AuthProvider } from "./context/AuthProvider";
 import { getSession } from "@/lib/auth";
 import AdminLogin from "./LoginPage";
 
@@ -23,16 +22,13 @@ export default async function RootLayout({
   const session = await getSession();
   if (!session) {
     return (
-      <AuthProvider>
-        <AdminLogin />
-      </AuthProvider>
+      <AdminLogin />
     );
   }
 
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
         <GlobalVarProvider>
           <NotificationProvider>
             <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -47,7 +43,6 @@ export default async function RootLayout({
             </div>
           </NotificationProvider>
         </GlobalVarProvider>
-        </AuthProvider>
       </body>
     </html>
   );

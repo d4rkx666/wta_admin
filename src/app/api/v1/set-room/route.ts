@@ -12,7 +12,6 @@ export async function POST(req: Request) {
 
   const roomString = formData.getAll('room')[0] as string;
   const images = formData.getAll('images[]');
-  const propertyId = formData.getAll('propertyId')[0] as string;
   const images_ids = formData.getAll('img[]');
   const room: Room = JSON.parse(roomString);
 
@@ -25,8 +24,6 @@ export async function POST(req: Request) {
     }
 
     const array_images_to_insert: { id: string, url: string }[] = [];
-    console.log(images_ids)
-
     // Check if is there a default Thumbnail
     let isThumbnail = false;
 
@@ -74,7 +71,8 @@ export async function POST(req: Request) {
     room.date_availability = toTimestamp(room.date_availability)
 
     console.log(room)
-    await firestoreService.upsertData("properties", propertyId, "rooms", room, room.id)
+    //await firestoreService.upsertData("properties", propertyId, "rooms", room, room.id)
+    await firestoreService.setDocument("rooms",room.id, room)
     return NextResponse.json({ success: true });
   } catch (error) {
     console.log(String(error))

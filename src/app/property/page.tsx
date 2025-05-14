@@ -3,20 +3,22 @@ import { PlusIcon, PencilIcon, TrashIcon, MapPinIcon, LinkIcon, XMarkIcon, Funne
 import { useEffect, useState, FormEvent } from 'react';
 import { Property, PropertyDefaultVal } from '@/types/property';
 import { Amenity } from '@/types/amenity';
-import { useLiveDocuments } from '@/hooks/useLiveListing';
+import { useLiveProperties } from '@/hooks/useLiveProperties';
 import { set_property } from '@/hooks/setProperty';
 import { del_property } from '@/hooks/delProperty';
 import Link from 'next/link';
 import ModalConfirmation from '../components/common/ModalConfirmation';
-import { RoomDefaultVal } from '@/types/room';
+import { Room } from '@/types/room';
 import Loader from '../components/common/Loader';
 import { useNotification } from "@/app/context/NotificationContext"
 import { useGlobalVariables } from '../context/VariableContext';
+import { useRoom } from '@/hooks/useRoom';
 
 export default function PropertyManagementPage() {
    const { showNotification } = useNotification();
-   const {listGlobalAmenities} = useGlobalVariables()
+   const {listGlobalAmenities, listPropertyTypes} = useGlobalVariables() // GET GLOBAL VARIABLES FROM DB
    const [properties, setProperties] = useState<Property[]>([]);
+   const [currentRooms, setCurrentRooms] = useState<Room[]>([]);
    const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
    const [currentPage, setCurrentPage] = useState(1);
    const [itemsPerPage] = useState(5);
@@ -32,7 +34,10 @@ export default function PropertyManagementPage() {
    const [currentProperty, setCurrentProperty] = useState<Property>(PropertyDefaultVal);
    const [showFilters, setShowFilters] = useState(false);
 
-   const { data, loading } = useLiveDocuments(); // Get Properties
+   const { data, loading } = useLiveProperties(); // Get Properties
+   const { data: data2, loading: loading2 } = useRoom(); // Get Rooms
+
+   const rooms = data2;
 
    useEffect(() => {
       setProperties(data);
@@ -80,6 +85,8 @@ export default function PropertyManagementPage() {
 
    const handleDeleteProperty = (property: Property) => {
       setCurrentProperty(property);
+      const propertyRooms = rooms.filter(room => room.id_property === property.id);
+      setCurrentRooms(propertyRooms)
       setIsModalConfirmOpen(true);
    };
 
@@ -130,7 +137,7 @@ export default function PropertyManagementPage() {
       try {
          setIsLoading(true);
          const deleteProperty = currentProperty;
-         const response = await del_property(deleteProperty);
+         const response = await del_property({property: deleteProperty, rooms: currentRooms});
 
          const data = await response.json();
          if (data.success) {
@@ -170,7 +177,7 @@ export default function PropertyManagementPage() {
 
    
 
-   if (loading) {
+   if (loading || loading2) {
       return <Loader />;
    }
 
@@ -306,7 +313,7 @@ export default function PropertyManagementPage() {
                            </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white">
-                           {currentProperties.map((property) => (
+                           {currentProperties.map(property => (
                               <tr key={property.id}>
                                  <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                                     {property.title}
@@ -334,7 +341,9 @@ export default function PropertyManagementPage() {
                                  </td>
                                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                                     <div className="flex flex-wrap gap-1 max-w-xs">
-                                       {property.rooms.map(room => (
+                                       {rooms.
+                                       filter(room => room.id_property === property.id).
+                                       map(room => (
                                           <span key={room.id} className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
                                              Room {room.room_number}
                                           </span>
@@ -546,10 +555,10 @@ export default function PropertyManagementPage() {
                                        defaultValue={currentProperty?.type || ''}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border bg-white"
                                     >
-                                       <option value="Apartment Building">Apartment Building</option>
-                                       <option value="House">House</option>
-                                       <option value="Condominium">Condominium</option>
-                                       <option value="Townhouse">Townhouse</option>
+                                       {listPropertyTypes.map((type, i)=>(
+                                          <option key={i} value={type}>{type}</option>
+                                       ))
+                                       }
                                     </select>
                                  </div>
                               </div>
@@ -562,14 +571,10 @@ export default function PropertyManagementPage() {
                                     id="description"
                                     name="description"
                                     rows={3}
-                                    required
                                     defaultValue={currentProperty?.description || ''}
-                                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border peer"
+                                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border"
                                     placeholder="Describe the property features and amenities..."
                                  />
-                                 <p className="mt-1 text-xs text-red-600 invisible peer-invalid:visible">
-                                    This field is required
-                                 </p>
                               </div>
 
                               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 mb-10">
@@ -686,11 +691,24 @@ export default function PropertyManagementPage() {
          {/* Delete Confirmation Modal */}
          {isModalConfirmOpen && (
             <ModalConfirmation
-            setIsModalConfirmOpen={setIsModalConfirmOpen}
-            handleDelProperty={handleDelProperty}
-            currentProperty={currentProperty}
-            currentRoom={RoomDefaultVal}
-            isLoading={isLoading}/>
+            isOpen={isModalConfirmOpen}
+            setIsOpen={setIsModalConfirmOpen}
+            onConfirm={handleDelProperty}
+            title="Delete Property"
+            message={`Are you sure you want to delete ${currentProperty.title}?`}
+            confirmText="Delete Property"
+            isLoading={isLoading}
+            additionalContent={
+               currentRooms?.length > 0 && (
+                  <>
+                  <p className="text-sm">This will also delete the following rooms:</p>
+                  {currentRooms.map(room => (
+                     <p key={room.id}>Room {room.room_number}</p>
+                  ))}
+                  </>
+               )
+            }
+            />
          )}
       </div>
    );

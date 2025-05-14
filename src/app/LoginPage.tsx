@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { LockClosedIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import {auth_user} from "@/hooks/auth"
+import { useRouter } from 'next/navigation';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -11,13 +13,22 @@ export default function AdminLogin() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const router = useRouter();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const authentication = await signInWithEmailAndPassword(auth, email, password);
+      const token = await authentication.user.getIdToken();
+
+      const data = await auth_user(token);
+      const resp = await data.json();
+      if(resp.success){
+        router.refresh();
+      }
     } catch (err) {
       setError(String(err));
       setLoading(false);

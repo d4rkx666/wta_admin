@@ -2,11 +2,10 @@
 import { firestoreService } from '@/lib/services/firestore-service';
 import { Room } from '@/types/room';
 import { NextResponse } from 'next/server';
-import { Property } from '@/types/property';
 import { delete_img } from '@/utils/imgurActions';
 
 export async function POST(req: Request) {
-  const { property, room }: {property: Property, room: Room} = await req.json();
+  const room:Room = await req.json();
 
   try {
 
@@ -18,15 +17,13 @@ export async function POST(req: Request) {
         })
       );
     }
-
-    const deleted_room = property.rooms.filter((item) => item.id !== room.id);
     
-    await firestoreService.updateDocument("properties", property.id, "rooms", deleted_room)
+    await firestoreService.deleteDocument("rooms", room.id)
     return NextResponse.json({ success: true });
   } catch (error) {
     console.log(String(error))
     return NextResponse.json(
-      { error: 'Failed to update document' },
+      { error: 'Failed to delete document' },
       { status: 500 }
     );
   }

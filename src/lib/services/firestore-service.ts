@@ -1,3 +1,4 @@
+import { MultipleDoc } from '@/types/multipleDocsToInsert';
 import { adminDb } from '../firebase/admin';
 import { DocumentData } from 'firebase-admin/firestore';
 
@@ -49,6 +50,15 @@ class FirestoreService {
   async updateDocument(collection: string, docId: string, fieldName: string, data: Object): Promise<void> {
     const docRef = adminDb.collection(collection).doc(docId);
     await docRef.update({ [fieldName]: data });
+  }
+
+  async setMultipleDocuments(data:MultipleDoc[]): Promise<void>{
+    await adminDb.runTransaction( async () => {
+      for (const docData of data) {
+        const docRef = adminDb.collection(docData.collection).doc(docData.docId);
+        docRef.set(docData.data, { merge: true }); 
+      }
+    });
   }
 }
 /* eslint-enable */

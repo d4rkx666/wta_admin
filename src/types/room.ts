@@ -12,6 +12,7 @@ export interface IFirestoreTimestamp {
 
 export type Room= {
   id: string;
+  id_property: string;
   room_number: number;
   title: string;
   thumbnail: string;
@@ -27,6 +28,7 @@ export type Room= {
 
 export const RoomDefaultVal: Room = {
     id: '',
+    id_property: '',
     room_number: 0,
     title: '',
     thumbnail: '',

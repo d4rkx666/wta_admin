@@ -1,5 +1,5 @@
 
-export async function call<T>(endpoint: string, data: T | null, hasHeader: boolean = true){
+export async function call<T>(endpoint: string, data: T | null, hasHeader: boolean = true, authorization:string = ""){
 
    const headers = new Headers(); 
    let body = undefined;
@@ -8,6 +8,9 @@ export async function call<T>(endpoint: string, data: T | null, hasHeader: boole
       if (!headers.has('Content-Type')) {
          headers.set('Content-Type', 'application/json');
          body = JSON.stringify(data);
+      }
+      if(authorization){
+         headers.set('authorization', `Bearer ${authorization}`);
       }
    }else{
       body = data as FormData

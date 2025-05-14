@@ -28,9 +28,7 @@ export default function Sidebar({className}:{className?: string}) {
       icon: UsersIcon,
       current: pathname.startsWith('/tenants'),
       children: [
-        { name: 'Add New Tenant', href: '/tenants/add' },
-        { name: 'Payments Done', href: '/tenants/payments' },
-        { name: 'Tenant Profiles', href: '/tenants/profiles' },
+        { name: 'Tenant Management', href: '/tenants/management' },
       ],
     },
     {
@@ -39,7 +37,6 @@ export default function Sidebar({className}:{className?: string}) {
       current: pathname.startsWith('/bills'),
       children: [
         { name: 'Bills Overview', href: '/bills/management' },
-        { name: 'Tenant Bills', href: '/bills/tenant-bills' },
       ],
     },
     {

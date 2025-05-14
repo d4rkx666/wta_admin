@@ -3,10 +3,13 @@ import { auth } from '@/lib/firebase/client';
 import { Bars3Icon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 import Sidebar from './Sidebar';
+import { logout_user } from '@/hooks/logout';
+import { useRouter } from 'next/navigation';
 
 export default function AdminHeader() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [toggleMenu, setToggleMenu] = useState("hidden");
+  const router = useRouter()
   
   const onMenuToggle = async()=>{
     
@@ -14,7 +17,13 @@ export default function AdminHeader() {
   }
 
   const onLogout = async()=>{
+    setShowDropdown(false);
     await auth.signOut();
+    const r = await logout_user();
+    const data = await r.json();
+    if(data.success){
+      router.refresh();
+    }
   }
 
   return (

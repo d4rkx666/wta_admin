@@ -1,113 +1,42 @@
 'use client';
 
-import { useState } from 'react';
-import { Bill } from '@/types/bill';
-
-type Property = {
-   id: string;
-   name: string;
-   address: string;
-};
-
-type Tenant = {
-   id: string;
-   name: string;
-   email: string;
-   propertyId: string;
-};
+import { FormEvent, useEffect, useState } from 'react';
+import { Bill, BillDefaultVal } from '@/types/bill';
+import { useLiveProperties } from '@/hooks/useLiveProperties';
+import Loader from '@/app/components/common/Loader';
+import { CurrencyDollarIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useNotification } from '@/app/context/NotificationContext';
+import { set_bill } from '@/hooks/setBill';
+import { useVariable } from '@/hooks/useVariables';
+import { useLiveBills } from '@/hooks/useLiveBills';
+import { useLiveTenants } from '@/hooks/useLiveTenants';
+import { useRoom } from '@/hooks/useRoom';
+import AsignBills from '@/app/components/common/AsignBillsToTenants';
+import { Payment } from '@/types/payment';
+import { Tenant } from '@/types/tenant';
+import { useLivePayments } from '@/hooks/useLivePayments';
 
 const BillsManagement = () => {
+   const { showNotification } = useNotification();
+   const { listBillTypes } = useVariable({ type: "bills" });
    const [activeTab, setActiveTab] = useState<'all' | 'unpaid' | 'paid'>('all');
    const [showCreateModal, setShowCreateModal] = useState(false);
-   const [showAssignModal, setShowAssignModal] = useState(false);
-   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
    const [filterProperty, setFilterProperty] = useState<string>('all');
+   const [isLoading, setIsLoading] = useState(false);
+   const [currentBill, setCurrentBill] = useState<Bill>(BillDefaultVal);
+   const [splitEvenly, setSplitEvenly] = useState(true);
+   const [splitTenants, setSplitTenants] = useState<{tenant: Partial<Tenant>; payment: Partial<Payment> }[]>([]);
 
-   // Mock data - replace with your actual data fetching
-   const properties: Property[] = [
-      { id: '1', name: 'Downtown Suite', address: '123 Main St, Vancouver' },
-      { id: '2', name: 'Kitsilano House', address: '456 Beach Ave, Vancouver' },
-      { id: '3', name: 'West End Apartment', address: '789 Robson St, Vancouver' },
-   ];
-
-   const tenants: Tenant[] = [
-      { id: '1', name: 'Alex Johnson', email: 'alex@example.com', propertyId: '1' },
-      { id: '2', name: 'Sam Wilson', email: 'sam@example.com', propertyId: '1' },
-      { id: '3', name: 'Taylor Smith', email: 'taylor@example.com', propertyId: '2' },
-      { id: '4', name: 'Jordan Lee', email: 'jordan@example.com', propertyId: '3' },
-   ];
-
-   const [bills, setBills] = useState<Bill[]>([
-      {
-         id: '1',
-         propertyId: '1',
-         propertyName: 'Downtown Suite',
-         billType: 'Electricity',
-         period: '2023-10',
-         amount: 125.75,
-         dueDate: '2023-11-05',
-         status: 'Paid',
-         assignedTenants: ['1', '2'],
-         notes: 'Increased usage this month'
-      },
-      {
-         id: '2',
-         propertyId: '2',
-         propertyName: 'Kitsilano House',
-         billType: 'Internet',
-         period: '2023-10',
-         amount: 89.99,
-         dueDate: '2023-11-01',
-         status: 'Unpaid',
-         assignedTenants: ['3'],
-         notes: 'Monthly subscription'
-      },
-      {
-         id: '3',
-         propertyId: '3',
-         propertyName: 'West End Apartment',
-         billType: 'Gas',
-         period: '2023-10',
-         amount: 65.50,
-         dueDate: '2023-11-10',
-         status: 'Pending',
-         assignedTenants: ['4'],
-         notes: ''
-      },
-      {
-         id: '4',
-         propertyId: '1',
-         propertyName: 'Downtown Suite',
-         billType: 'Water',
-         period: '2023-09',
-         amount: 85.25,
-         dueDate: '2023-10-05',
-         status: 'Paid',
-         assignedTenants: ['1', '2'],
-         notes: 'Normal usage'
-      },
-   ]);
-
-   // Form state for creating/editing bills
-   const [formData, setFormData] = useState<Omit<Bill, 'id' | 'propertyName' | 'status' | 'assignedTenants'>>({
-      propertyId: '',
-      billType: 'Electricity',
-      period: new Date().toISOString().slice(0, 7),
-      amount: 0,
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().slice(0, 10),
-      notes: ''
-   });
-
-   // Form state for assigning tenants
-   const [assignmentData, setAssignmentData] = useState({
-      billId: '',
-      tenantIds: [] as string[]
-   });
+   const { data: properties, loading: loadingProperties } = useLiveProperties(); // Get Properties
+   const { data: bills, loading: loadingBills } = useLiveBills(); // Get Bills
+   const { data: tenants, loading: loadingTenants } = useLiveTenants(); // Get Tenants
+   const { data: rooms, loading: loadingRooms } = useRoom(); // Get Rooms
+   const { data: paymentTenantBills, loading: loadingPaymentTenantBills } = useLivePayments(); // Get Rooms
 
    // Filter bills based on active tab and property filter
    const filteredBills = bills.filter(bill => {
       // Filter by status
-      if (activeTab === 'unpaid' && bill.status !== 'Unpaid') return false;
+      if (activeTab === 'unpaid' && bill.status !== "Pending") return false;
       if (activeTab === 'paid' && bill.status !== 'Paid') return false;
 
       // Filter by property
@@ -116,66 +45,102 @@ const BillsManagement = () => {
       return true;
    });
 
+   const handlePaymentAmountChange = (id: string, value: number) => {
+      const newAmount = value;
+      const newSplit = splitTenants.map((split, i) =>{
+         if(splitTenants[i].tenant.id === id){
+            splitTenants[i].payment.amount_payment = newAmount
+         }
+         return split;
+      });
+      setSplitTenants(newSplit)
+      setSplitEvenly(false);
+   };
+
    // Calculate totals
    const totalAmount = filteredBills.reduce((sum, bill) => sum + bill.amount, 0);
-   const unpaidAmount = bills.filter(b => b.status === 'Unpaid').reduce((sum, bill) => sum + bill.amount, 0);
+   const unpaidAmount = bills.filter(b => b.status === "Pending").reduce((sum, bill) => sum + bill.amount, 0);
 
-   const handleCreateBill = () => {
-      const newBill: Bill = {
-         id: (bills.length + 1).toString(),
-         propertyName: properties.find(p => p.id === formData.propertyId)?.name || '',
-         status: 'Unpaid',
-         assignedTenants: [],
-         ...formData
-      };
+   const handleCreateBill = async (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      try {
+         setIsLoading(true);
 
-      setBills([...bills, newBill]);
-      setShowCreateModal(false);
-      setFormData({
-         propertyId: '',
-         billType: 'Electricity',
-         period: new Date().toISOString().slice(0, 7),
-         amount: 0,
-         dueDate: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().slice(0, 10),
-         notes: ''
-      });
-   };
+         console.log(currentBill,splitTenants)
 
-   const handleAssignTenants = () => {
-      if (!selectedBill) return;
+         const response = await set_bill(currentBill, splitTenants);
 
-      const updatedBills = bills.map(bill => {
-         if (bill.id === selectedBill.id) {
-            return {
-               ...bill,
-               assignedTenants: assignmentData.tenantIds
-            };
+         const data = await response.json();
+         if (data.success) {
+            showNotification('success', 'Property form submitted successfully!');
+            setShowCreateModal(false);
+         } else {
+            showNotification('error', 'Something went wrong... Please check all the form data and try again.');
          }
-         return bill;
-      });
-
-      setBills(updatedBills);
-      setShowAssignModal(false);
-      setAssignmentData({
-         billId: '',
-         tenantIds: []
-      });
+      } catch (err) {
+         console.log(err);
+      } finally {
+         setIsLoading(false);
+      }
    };
 
-   const markAsPaid = (billId: string) => {
-      console.log(billId)
-      /*const updatedBills = bills.map(bill => {
-        if (bill.id === billId) {
-          return {
-            ...bill,
-            status: 'Paid'
-          };
-        }
-        return bill;
+   useEffect(() => {
+      // Filter properties, then check each room to find all the tenants.
+      const propertyTenants = tenants.filter(tenant => {
+         const filteredRooms = rooms.filter(r => r.id_property == currentBill.propertyId).find(r => r.id == tenant.room_id);
+         const tenantRentedOnBillDate = new Date(tenant.lease_start) <= new Date(currentBill.dueDate) && new Date(tenant.lease_end) >= new Date(currentBill.issuedDate);
+         if (!filteredRooms || !tenantRentedOnBillDate) return false;
+         return true;
       });
-      
-      setBills(updatedBills);*/
-   };
+
+      if (propertyTenants.length > 0) {
+         const splitAmount = currentBill.amount / propertyTenants.length;
+         const newSplits = propertyTenants.map(tenant => {
+
+            const t:Partial<Tenant> = {
+               id: tenant.id,
+               name: tenant.name,
+               lease_start: tenant.lease_start,
+               lease_end: tenant.lease_end,
+            }
+            
+            const p: Partial<Payment> = {
+               amount_payment: splitEvenly ? splitAmount : 0
+            }
+
+            return{
+               tenant:t,
+               payment:p,
+            }
+         });
+         setSplitTenants(newSplits);
+      } else {
+         setSplitTenants([]);
+      }
+   }, [currentBill.propertyId, currentBill.amount, currentBill.issuedDate, currentBill.dueDate]);
+
+   useEffect(()=>{
+      if (splitEvenly) { // Split Evenly only when true
+         const splitAmount = currentBill.amount / splitTenants.length; // divide the amount
+         const newSplits = splitTenants.map(split => ({
+            tenant: split.tenant,
+            payment: {
+               ...split.payment, amount_payment:splitAmount
+            }
+         }));
+         setSplitTenants(newSplits);
+      }
+   },[splitEvenly])
+   
+
+   const handleOnCloseClick = () => {
+      setShowCreateModal(false)
+      setCurrentBill(BillDefaultVal);
+   }
+
+   if (loadingProperties || loadingBills || loadingTenants || loadingRooms || loadingPaymentTenantBills) {
+      return <Loader />;
+   }
 
    return (
       <div className="container mx-auto px-4 py-8">
@@ -242,7 +207,7 @@ const BillsManagement = () => {
                   >
                      <option value="all">All Properties</option>
                      {properties.map(property => (
-                        <option key={property.id} value={property.id}>{property.name}</option>
+                        <option key={property.id} value={property.id}>{property.title}</option>
                      ))}
                   </select>
                </div>
@@ -262,10 +227,13 @@ const BillsManagement = () => {
                            Bill Type
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                           Period
+                           Total Amount
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                           Amount
+                           Current Balance
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                           Issued Date
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                            Due Date
@@ -283,86 +251,82 @@ const BillsManagement = () => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                      {filteredBills.length > 0 ? (
-                        filteredBills.map((bill) => (
-                           <tr key={bill.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="font-medium text-gray-900">{bill.propertyName}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-gray-900">{bill.billType}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-gray-900">
-                                    {new Date(bill.period + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
-                                 </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-gray-900">${bill.amount.toFixed(2)}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-gray-900">
-                                    {new Date(bill.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                 </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <span className={`px-2 py-1 text-xs rounded-full ${bill.status === 'Paid'
+                        filteredBills.map((bill) => {
+                           const p = properties.find(p => p.id === bill.propertyId);
+                           const t = tenants.filter(tenant => {
+                              const filteredRooms = rooms.find(r => r.id_property == p?.id && r.id === tenant.room_id);
+                              if (!filteredRooms) return false;
+                              return true;
+                           });
+
+                           // get sum of payments done
+                           const payments = paymentTenantBills.reduce((amount, p) => amount + ((p.bill_id === bill.id && p.status==="Paid") ?  p.amount_paid : 0), 0);
+                           const is_amount_paid = payments >= bill.amount;
+
+                           const p_title = p ? p.title : null;
+
+                           return (
+                              <tr key={bill.id} className="hover:bg-gray-50">
+                                 <td className="px-6 py-4 whitespace-nowrap">
+
+                                    <div className="font-medium text-gray-900">{p_title}</div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-gray-900">{bill.type}</div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-gray-900">${bill.amount.toFixed(2)}</div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-gray-900">${bill.balance.toFixed(2)}</div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-gray-900">
+                                       {new Date(bill.issuedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-gray-900">
+                                       {new Date(bill.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`px-2 py-1 text-xs rounded-full ${is_amount_paid
                                        ? 'bg-green-100 text-green-800'
-                                       : bill.status === 'Unpaid'
-                                          ? 'bg-red-100 text-red-800'
-                                          : 'bg-yellow-100 text-yellow-800'
-                                    }`}>
-                                    {bill.status}
-                                 </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-gray-900">
-                                    {bill.assignedTenants.length > 0 ? (
-                                       <span className="text-sm">
-                                          {bill.assignedTenants.length} tenant{bill.assignedTenants.length !== 1 ? 's' : ''}
-                                       </span>
-                                    ) : (
-                                       <span className="text-sm text-gray-400">Not assigned</span>
-                                    )}
-                                 </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                 <div className="flex justify-end space-x-2">
-                                    {bill.status === 'Unpaid' && (
-                                       <button
-                                          onClick={() => markAsPaid(bill.id)}
+                                       : 
+                                          'bg-yellow-100 text-yellow-800'
+                                       }`}>
+                                       {is_amount_paid ? "Paid" : "Pending"}
+                                    </span>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="flex flex-col text-gray-900">
+                                       {t.length > 0 ? t.map((tenant, i) =>{
+                                          return (
+                                             <span key={i} className="text-xs">
+                                                {tenant.name}
+                                             </span>
+                                          )
+                                       }) : (
+                                          <span className="text-sm text-gray-400">Not assigned</span>
+                                       )}
+                                    </div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <div className="flex justify-end space-x-2">
+                                       {is_amount_paid && bill.status !== "Pending" && (
+                                          <button
+                                          type='button'
                                           className="text-green-600 hover:text-green-900"
-                                       >
-                                          Mark Paid
-                                       </button>
-                                    )}
-                                    <button
-                                       onClick={() => {
-                                          setSelectedBill(bill);
-                                          setAssignmentData({
-                                             billId: bill.id,
-                                             tenantIds: [...bill.assignedTenants]
-                                          });
-                                          setShowAssignModal(true);
-                                       }}
-                                       className="text-blue-600 hover:text-blue-900"
-                                    >
-                                       Assign
-                                    </button>
-                                    {bill.notes && (
-                                       <button
-                                          onClick={() => alert(`Notes:\n${bill.notes}`)}
-                                          className="text-gray-600 hover:text-gray-900"
-                                          title="View notes"
-                                       >
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                          </svg>
-                                       </button>
-                                    )}
-                                 </div>
-                              </td>
-                           </tr>
-                        ))
+                                          >
+                                             Mark Paid
+                                          </button>
+                                       )}
+                                    </div>
+                                 </td>
+                              </tr>
+                           )
+                        })
                      ) : (
                         <tr>
                            <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
@@ -377,187 +341,217 @@ const BillsManagement = () => {
 
          {/* Create Bill Modal */}
          {showCreateModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-               <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-                  <div className="p-6">
-                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold text-gray-900">Add New Bill</h2>
-                        <button
-                           onClick={() => setShowCreateModal(false)}
-                           className="text-gray-400 hover:text-gray-500"
-                        >
-                           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                           </svg>
-                        </button>
-                     </div>
+            <div className="fixed inset-0 z-50 overflow-y-auto">
+               <div
+                  className="fixed inset-0 bg-gray-600/70 transition-opacity"
+                  aria-hidden="true"
+                  onClick={handleOnCloseClick}
+               ></div>
 
-                     <div className="space-y-4">
-                        <div>
-                           <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
-                           <select
-                              value={formData.propertyId}
-                              onChange={(e) => setFormData({ ...formData, propertyId: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              required
+               <div className="flex min-h-screen items-center justify-center p-4 text-center">
+                  <div className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all w-full max-w-2xl">
+                     <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4">
+                        <div className="flex items-center justify-between">
+                           <h3 className="text-lg font-semibold text-white">
+                              {currentBill.id != "" ? 'Edit Bill' : 'Add New Bill'}
+                           </h3>
+                           <button
+                              type="button"
+                              className="rounded-md p-1 text-white hover:bg-blue-500 focus:outline-none"
+                              onClick={handleOnCloseClick}
                            >
-                              <option value="">Select Property</option>
-                              {properties.map(property => (
-                                 <option key={property.id} value={property.id}>{property.name}</option>
-                              ))}
-                           </select>
-                        </div>
-
-                        <div>
-                           <label className="block text-sm font-medium text-gray-700 mb-1">Bill Type</label>
-                           <select
-                              value={formData.billType}
-                              //</div>onChange={(e) => setFormData({ ...formData, billType: e.target.value as any })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              required
-                           >
-                              <option value="Electricity">Electricity</option>
-                              <option value="Gas">Gas</option>
-                              <option value="Water">Water</option>
-                              <option value="Internet">Internet</option>
-                              <option value="Cable">Cable</option>
-                              <option value="Maintenance">Maintenance</option>
-                              <option value="Other">Other</option>
-                           </select>
-                        </div>
-
-                        <div>
-                           <label className="block text-sm font-medium text-gray-700 mb-1">Period (Month/Year)</label>
-                           <input
-                              type="month"
-                              value={formData.period}
-                              onChange={(e) => setFormData({ ...formData, period: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              required
-                           />
-                        </div>
-
-                        <div>
-                           <label className="block text-sm font-medium text-gray-700 mb-1">Amount ($)</label>
-                           <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={formData.amount}
-                              onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              required
-                           />
-                        </div>
-
-                        <div>
-                           <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                           <input
-                              type="date"
-                              value={formData.dueDate}
-                              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              required
-                           />
-                        </div>
-
-                        <div>
-                           <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
-                           <textarea
-                              value={formData.notes}
-                              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              rows={3}
-                           />
+                              <XMarkIcon className="h-6 w-6" />
+                           </button>
                         </div>
                      </div>
 
-                     <div className="mt-6 flex justify-end space-x-3">
-                        <button
-                           onClick={() => setShowCreateModal(false)}
-                           className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                        >
-                           Cancel
-                        </button>
-                        <button
-                           onClick={handleCreateBill}
-                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                           Save Bill
-                        </button>
-                     </div>
-                  </div>
-               </div>
-            </div>
-         )}
+                     <div className="px-6 py-5">
+                        <form onSubmit={handleCreateBill} method='post'>
+                           <div className="space-y-4">
+                              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                                 <div>
+                                    <label htmlFor="property_id" className="block text-sm font-medium text-gray-700 mb-1">
+                                       Property
+                                    </label>
+                                    <select
+                                       id="property_id"
+                                       name="property_id"
+                                       onChange={(e) => setCurrentBill({ ...currentBill, propertyId: e.target.value })}
+                                       defaultValue={currentBill.propertyId || ""}
+                                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border bg-white peer"
+                                       required
+                                    >
+                                       <option value="" disabled>Select a property</option>
+                                       {properties.map(property => (
+                                          <option key={property.id} value={property.id}>{property.title}</option>
+                                       ))}
+                                    </select>
+                                    <p className="mt-1 text-xs text-red-600 invisible peer-invalid:visible">
+                                       This field is required
+                                    </p>
+                                 </div>
 
-         {/* Assign Tenants Modal */}
-         {showAssignModal && selectedBill && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-               <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-                  <div className="p-6">
-                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold text-gray-900">
-                           Assign Tenants to {selectedBill.billType} Bill
-                        </h2>
-                        <button
-                           onClick={() => setShowAssignModal(false)}
-                           className="text-gray-400 hover:text-gray-500"
-                        >
-                           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                           </svg>
-                        </button>
-                     </div>
+                                 <div>
+                                    <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
+                                       Bill Type
+                                    </label>
+                                    <select
+                                       id="type"
+                                       name="type"
+                                       defaultValue={currentBill.type || ""}
+                                       onChange={(e) => setCurrentBill({ ...currentBill, type: e.target.value })}
+                                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border bg-white peer"
+                                       required
+                                    >
+                                       <option value="" disabled>Select a bill</option>
+                                       {listBillTypes.map((b, i) => (
+                                          <option key={i} value={b}>{b}</option>
+                                       ))}
+                                    </select>
+                                    <p className="mt-1 text-xs text-red-600 invisible peer-invalid:visible">
+                                       This field is required
+                                    </p>
+                                 </div>
+                              </div>
 
-                     <div className="mb-4">
-                        <p className="text-sm text-gray-600">
-                           Select tenants to assign this bill to. The bill amount will be split equally among assigned tenants.
-                        </p>
-                     </div>
+                              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                                 <div>
+                                    <label htmlFor="issuedDate" className="block text-sm font-medium text-gray-700 mb-1">
+                                       Issued date
+                                    </label>
+                                    <input
+                                       type="date"
+                                       id="issuedDate"
+                                       name="issuedDate"
+                                       required
+                                       defaultValue={currentBill.issuedDate.toString()}
+                                       onChange={(e) => setCurrentBill({ ...currentBill, issuedDate: new Date(e.target.value) })}
+                                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-5 px-4 py-2 border peer"
+                                       placeholder="123 Main St, City, State"
+                                    />
+                                    <p className="mt-1 text-xs text-red-600 invisible peer-invalid:visible">
+                                       This field is required
+                                    </p>
+                                 </div>
 
-                     <div className="space-y-3">
-                        {tenants.filter(t => t.propertyId === selectedBill.propertyId).map(tenant => (
-                           <div key={tenant.id} className="flex items-center">
-                              <input
-                                 type="checkbox"
-                                 id={`tenant-${tenant.id}`}
-                                 checked={assignmentData.tenantIds.includes(tenant.id)}
-                                 onChange={(e) => {
-                                    if (e.target.checked) {
-                                       setAssignmentData({
-                                          ...assignmentData,
-                                          tenantIds: [...assignmentData.tenantIds, tenant.id]
-                                       });
-                                    } else {
-                                       setAssignmentData({
-                                          ...assignmentData,
-                                          tenantIds: assignmentData.tenantIds.filter(id => id !== tenant.id)
-                                       });
-                                    }
-                                 }}
-                                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              />
-                              <label htmlFor={`tenant-${tenant.id}`} className="ml-3 block text-sm text-gray-700">
-                                 {tenant.name} ({tenant.email})
-                              </label>
+                                 <div>
+                                    <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+                                       Due date
+                                    </label>
+                                    <input
+                                       type="date"
+                                       id="dueDate"
+                                       name="dueDate"
+                                       required
+                                       defaultValue={currentBill.dueDate.toString()}
+                                       onChange={(e) => setCurrentBill({ ...currentBill, dueDate: new Date(e.target.value) })}
+                                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-5 px-4 py-2 border peer"
+                                       placeholder="123 Main St, City, State"
+                                    />
+                                    <p className="mt-1 text-xs text-red-600 invisible peer-invalid:visible">
+                                       This field is required
+                                    </p>
+                                 </div>
+
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 mb-8">
+                                 <div>
+                                    <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+                                       Amount
+                                    </label>
+                                    <div className="relative rounded-md shadow-sm">
+                                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                          <CurrencyDollarIcon className="h-5 w-5 text-gray-400" />
+                                       </div>
+                                       <input
+                                          type="number"
+                                          id="amount"
+                                          name="amount"
+                                          placeholder="0.00"
+                                          min="0"
+                                          step="0.01"
+                                          required
+                                          defaultValue={currentBill.amount}
+                                          onChange={(e) => setCurrentBill({ ...currentBill, balance: Number(e.target.value), amount: Number(e.target.value) })}
+                                          className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border peer"
+                                       />
+                                       <p className="absolute mt-1 text-xs text-red-600 invisible peer-invalid:visible">
+                                          This field is required
+                                       </p>
+                                    </div>
+                                 </div>
+
+                                 <div>
+                                    <label htmlFor="balance" className="block text-sm font-medium text-gray-700 mb-1">
+                                       Balance
+                                    </label>
+                                    <div className="relative rounded-md shadow-sm">
+                                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                          <CurrencyDollarIcon className="h-5 w-5 text-gray-400" />
+                                       </div>
+                                       <input
+                                          type="number"
+                                          id="balance"
+                                          name="balance"
+                                          disabled
+                                          value={currentBill.balance}
+                                          className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-gray-200 pl-10 px-4 py-2 border"
+                                          placeholder="123 Main St, City, State"
+                                       />
+                                    </div>
+                                 </div>
+                              </div>
+
+                              <div>
+                                 <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Notes (optional)
+                                 </label>
+                                 <textarea
+                                    id="notes"
+                                    name="notes"
+                                    rows={3}
+                                    defaultValue={currentBill.notes}
+                                    onChange={(e) => setCurrentBill({ ...currentBill, notes: e.target.value })}
+                                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border"
+                                    placeholder="Any notes..."
+                                 />
+                              </div>
+
+
+
+                              {splitTenants.length > 0 && (
+                                 <AsignBills
+                                 bill={currentBill}
+                                 tenantSplits={splitTenants}
+                                 handlePaymentAmountChange={handlePaymentAmountChange}
+                                 splitEvenly={splitEvenly}
+                                 setSplitEvenly={setSplitEvenly}
+                                 />
+                              )}
                            </div>
-                        ))}
-                     </div>
 
-                     <div className="mt-6 flex justify-end space-x-3">
-                        <button
-                           onClick={() => setShowAssignModal(false)}
-                           className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                        >
-                           Cancel
-                        </button>
-                        <button
-                           onClick={handleAssignTenants}
-                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                           Save Assignments
-                        </button>
+                           <div className="mt-6 flex justify-end space-x-3">
+                              <button
+                                 type="button"
+                                 onClick={handleOnCloseClick}
+                                 className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              >
+                                 Cancel
+                              </button>
+                              <button
+                                 type="submit"
+                                 disabled={isLoading}
+                                 className="inline-flex items-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-blue-300"
+                              >
+                                 {isLoading ? (
+                                    currentBill.id != "" ? 'Updating Bill...' : 'Creating Bill...'
+                                 ) : (
+                                    currentBill.id != "" ? 'Update Bill' : 'Create Bill'
+                                 )}
+                              </button>
+                           </div>
+                        </form>
                      </div>
                   </div>
                </div>

@@ -1,21 +1,21 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { collection, getDocs, onSnapshot, where, query } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { Property } from '@/types/property';
+import { Payment } from '@/types/payment';
 
 
-export function useLiveDocuments() {
-  const [data, setData] = useState<Property[]>([]); // State to hold the documents
+export function useLivePayments() {
+  const [data, setData] = useState<Payment[]>([]); // State to hold the documents
   const [loading, setLoading] = useState<boolean>(true); // Loading state to track fetching status
 
   useEffect(() => {
     // First fetch all documents initially with getDocs
     const fetchData = async () => {
       try {
-        const querySnapshot = await getDocs(query(collection(db, "properties"), where("enabled", "==", true)));
+        const querySnapshot = await getDocs(collection(db, "payments"));
         const docs = querySnapshot.docs.map(doc => ({
-          ...doc.data() as Property,
+          ...doc.data() as Payment,
         }));
 
         setData(docs); // Set the initial data
@@ -29,9 +29,9 @@ export function useLiveDocuments() {
     fetchData();
 
     // Now set up the real-time listener with onSnapshot for live updates
-    const unsubscribe = onSnapshot(query(collection(db, "properties"), where("enabled", "==", true)), (snap) => {
+    const unsubscribe = onSnapshot(collection(db, "payments"), (snap) => {
       const updatedDocs = snap.docs.map(doc => ({
-        ...doc.data() as Property,
+        ...doc.data() as Payment,
       }));
       setData(updatedDocs); // Update the state with live changes
     });

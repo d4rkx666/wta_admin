@@ -24,13 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-
-      // Check if login API already called
-      const current = localStorage.getItem("current");
-      console.log(current)
-
-      // Set or clear the session cookie
-      if (user && !current) {
+      if (user) {
         setUser(user);
         setLoading(false);
         const token = await user.getIdToken();
@@ -43,20 +37,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         const data = await response.json();
-        if(data.success){
-          localStorage.setItem("current", "1");
+        if(data.success && !data.isLoggedIn){
           router.refresh();
         }
-      } else if(!user && current){
-        console.log("logging out")
-        await fetch('/api/v1/logout', { method: 'POST' });
-        localStorage.removeItem("current");
-        router.refresh();
+      }else{
+        const r = await fetch('/api/v1/logout', { method: 'POST' });
+        const data = await r.json();
+        if(data.success){
+          router.refresh();
+        }
       }
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, []);
 
   const logout = async () => {
     await auth.signOut();

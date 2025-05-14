@@ -1,8 +1,7 @@
 // app/api/auth/session/route.ts
 import { NextResponse } from 'next/server';
 import { verifyIdToken } from '@/lib/firebase/admin';
-import { cookies } from 'next/headers';
-import { getSession } from '@/lib/auth';
+import { getSession, setSession } from '@/lib/auth';
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get('authorization');
@@ -15,30 +14,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const expiresIn = 60 * 60 * 24 * 5 * 1000;
-
   try {
     const verify = await verifyIdToken(token);
     const currentSession = await getSession();
     
-    // check if is correct and not current session
-    if(verify && !currentSession){
-      const getCookies = await cookies();
-
-      getCookies.set('session', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: expiresIn,
-        path: '/',
-      });
+    let isLoggedIn = false;
+    if(!currentSession && verify){
+      await setSession(token);
     }else if(currentSession){
-      
-    }else{
-      throw new Error();
+      isLoggedIn = true;
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, isLoggedIn: isLoggedIn });
   } catch (error) {
     return NextResponse.json(
       { error: String(error)},

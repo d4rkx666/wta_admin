@@ -1,7 +1,6 @@
 'use client'
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useProperty } from '@/hooks/useProperty';
 import Loader from '@/app/components/common/Loader';
 import { RoomCard } from '@/app/components/RoomCard';
 import { Room, RoomDefaultVal } from '@/types/room';
@@ -10,24 +9,24 @@ import { set_room } from '@/hooks/setRoom';
 import { del_room } from '@/hooks/delRoom';
 import { ImageItem } from '@/types/imageItem';
 import ModalConfirmation from '@/app/components/common/ModalConfirmation';
-import { PropertyDefaultVal } from '@/types/property';
 import { useNotification } from '@/app/context/NotificationContext';
+import { useRoom } from '@/hooks/useRoom';
 
 
 export default function RoomListing() {
   const {showNotification} = useNotification();
   const { propertyId } = useParams<{ propertyId: string }>();
-  const { data, loading } = useProperty(propertyId);
+  const { data, loading } = useRoom(propertyId); // get property
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentRoom, setCurrentRoom] = useState<Room>(RoomDefaultVal);
   const [isModalConfirmOpen,setIsModalConfirmOpen] = useState(false)
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   if (loading) {
     return <Loader />;
   }
 
-  const property = data;
+  const rooms = data;
 
   const openCreateModal = () => {
     setCurrentRoom(RoomDefaultVal);
@@ -63,9 +62,9 @@ export default function RoomListing() {
       const formData = new FormData();
 
       // insert room
+      roomData.id_property = propertyId;
       formData.append('room', JSON.stringify(roomData));
       formData.append('roomId', roomData.id ? roomData.id : "");
-      formData.append('propertyId', propertyId);
 
       // insert images
       files.forEach(({ img, file }) => {
@@ -88,17 +87,20 @@ export default function RoomListing() {
       throw error;
     }finally{
       images.forEach(img => URL.revokeObjectURL(img.url));
+      setCurrentRoom(RoomDefaultVal);
     }
   };
 
   const handleDelProperty = async()=>{
     try {
-      await del_room({property: property, room:currentRoom});
+      setIsLoading(true);
+      await del_room(currentRoom);
     } catch (error) {
       console.error('Upload failed:', error);
     }finally{
       setIsModalConfirmOpen(false);
       setCurrentRoom(RoomDefaultVal);
+      setIsLoading(false);
     }
   }
 
@@ -115,12 +117,11 @@ export default function RoomListing() {
       </div>
 
       {/* Room Cards Grid */}
-      {property.rooms.length > 0 ? (
+      {rooms.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {property.rooms.map((room, i) => (
+          {rooms.map((room, i) => (
             <RoomCard
               key={i}
-              property={property}
               room={room}
               onEdit={() => openEditModal(room)}
               onDelete={() => {setIsModalConfirmOpen(true); setCurrentRoom(room)}}
@@ -129,11 +130,15 @@ export default function RoomListing() {
 
           {isModalConfirmOpen && (
             <ModalConfirmation
-            setIsModalConfirmOpen={setIsModalConfirmOpen}
-            handleDelProperty={handleDelProperty}
-            currentProperty={PropertyDefaultVal}
-            currentRoom={currentRoom}
-            isLoading={isLoading}/>
+            isOpen={isModalConfirmOpen}
+            setIsOpen={setIsModalConfirmOpen}
+            onConfirm={handleDelProperty}
+            title="Confirm Action"
+            message="Are you sure you want to proceed?"
+            confirmText="Proceed"
+            isDangerous={true}
+            isLoading={isLoading}
+          />
           )}
         </div>
       ) : (

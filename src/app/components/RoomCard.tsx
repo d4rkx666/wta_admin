@@ -1,10 +1,9 @@
 'use client'
 
 import { Room } from '@/types/room';
-import { Property } from '@/types/property';
 import Image from 'next/image';
 
-export function RoomCard({ property, room, onEdit, onDelete }: { property: Property, room: Room; onEdit: () => void; onDelete: () => void }) {
+export function RoomCard({room, onEdit, onDelete }: { room: Room; onEdit: () => void; onDelete: () => void }) {
   
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden transition transform hover:-translate-y-2">
@@ -21,7 +20,6 @@ export function RoomCard({ property, room, onEdit, onDelete }: { property: Prope
       </div>
       <div className="p-6">
         <h3 className="text-xl font-semibold mb-2">{room.title}</h3>
-        <p className="text-gray-600 mb-4">{property.location}</p>
         <div className="flex justify-between items-center mb-4">
           <span className={`px-2 py-1 text-xs rounded-full ${
             room.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -39,12 +37,14 @@ export function RoomCard({ property, room, onEdit, onDelete }: { property: Prope
           >
             Edit
           </button>
-          <button
-            onClick={onDelete}
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition"
-          >
-            Delete
-          </button>
+          {room.available && 
+            <button
+              onClick={onDelete}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition"
+            >
+              Delete
+            </button>
+          }
         </div>
       </div>
     </div>
