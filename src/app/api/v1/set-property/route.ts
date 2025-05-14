@@ -9,13 +9,11 @@ export async function POST(req: Request) {
 
   try {
     // eslint-disable-next-line
-    let { rooms, ...propertyWithoutRooms } = data;
     if (data.id == "") {
       data.id = uuidv4();
-      propertyWithoutRooms = data
     }
     
-    await firestoreService.setDocument("properties", data.id, propertyWithoutRooms)
+    await firestoreService.setDocument("properties", data.id, data)
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(
