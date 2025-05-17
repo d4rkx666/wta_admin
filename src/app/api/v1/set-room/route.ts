@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { toTimestamp } from '@/utils/toTimestamp';
 import { ImageItem } from '@/types/imageItem';
 import { delete_img, insert_img } from '@/utils/imgurActions';
+import { getSession } from '@/lib/auth';
 
 export async function POST(req: Request) {
   const formData = await req.formData();
@@ -15,8 +16,10 @@ export async function POST(req: Request) {
   const images_ids = formData.getAll('img[]');
   const room: Room = JSON.parse(roomString);
 
-
-  //const { data, images}: { data: Room, images:ImageItem[] } = await req.json();
+  // Check auth
+  if(!getSession()){
+    return NextResponse.json({ success: false, message: "User not authenticated" });
+  }
 
   try {
     if (room.id == "") {

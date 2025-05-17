@@ -4,9 +4,15 @@ import { Property } from '@/types/property';
 import { NextResponse } from 'next/server';
 import {POST as delRoom} from "@/app/api/v1/del-room/route"
 import { Room } from '@/types/room';
+import { getSession } from '@/lib/auth';
 
 export async function POST(req: Request) {
   const {property, rooms}: {property: Property, rooms: Room[]} = await req.json();
+
+  // Check auth
+  if(!getSession()){
+    return NextResponse.json({ success: false, message: "User not authenticated" });
+  }
 
   try {
     if(rooms.length > 0){

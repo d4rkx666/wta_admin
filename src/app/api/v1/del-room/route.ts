@@ -3,9 +3,15 @@ import { firestoreService } from '@/lib/services/firestore-service';
 import { Room } from '@/types/room';
 import { NextResponse } from 'next/server';
 import { delete_img } from '@/utils/imgurActions';
+import { getSession } from '@/lib/auth';
 
 export async function POST(req: Request) {
   const room:Room = await req.json();
+
+  // Check auth
+  if(!getSession()){
+    return NextResponse.json({ success: false, message: "User not authenticated" });
+  }
 
   try {
 

@@ -3,6 +3,7 @@ import {
   HomeIcon,
   UsersIcon,
   CreditCardIcon,
+  DocumentIcon,
   BuildingOfficeIcon,
   Cog6ToothIcon,
   ChevronDownIcon,
@@ -32,8 +33,16 @@ export default function Sidebar({className}:{className?: string}) {
       ],
     },
     {
-      name: 'Bills Management',
+      name: 'Payments control',
       icon: CreditCardIcon,
+      current: pathname.startsWith('/payments'),
+      children: [
+        { name: 'Payment Management', href: '/payments' },
+      ],
+    },
+    {
+      name: 'Bills Management',
+      icon: DocumentIcon,
       current: pathname.startsWith('/bills'),
       children: [
         { name: 'Bills Overview', href: '/bills/management' },

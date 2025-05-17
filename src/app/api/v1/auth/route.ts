@@ -1,6 +1,5 @@
 // app/api/auth/session/route.ts
 import { NextResponse } from 'next/server';
-import { verifyIdToken } from '@/lib/firebase/admin';
 import { getSession, setSession } from '@/lib/auth';
 
 export async function POST(request: Request) {
@@ -15,17 +14,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const verify = await verifyIdToken(token);
-    const currentSession = await getSession();
-    
-    let isLoggedIn = false;
-    if(!currentSession && verify){
-      await setSession(token);
-    }else if(currentSession){
-      isLoggedIn = true;
+    await setSession(token); // set cookie
+    const isAuth = await getSession(); // verify is user is authentic
+    if(!isAuth){
+      return NextResponse.json({ success: false, isLoggedIn: false });
     }
 
-    return NextResponse.json({ success: true, isLoggedIn: isLoggedIn });
+    return NextResponse.json({ success: true, isLoggedIn: true });
   } catch (error) {
     return NextResponse.json(
       { error: String(error)},

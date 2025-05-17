@@ -28,10 +28,15 @@ export default function AdminLogin() {
       const resp = await data.json();
       if(resp.success){
         router.refresh();
+      }else{
+        setError("Email or password incorrect.")
+        await auth.signOut();
       }
     } catch (err) {
       setError(String(err));
       setLoading(false);
+    }finally{
+      setLoading(false)
     }
   };
 

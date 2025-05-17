@@ -14,13 +14,42 @@ const adminApp = getApp();
 const adminDb = getFirestore(adminApp);
 
 
-export async function verifyIdToken(token: string) {
+//eslint-disable-next-line
+export async function verifyIdToken(token: string):Promise<any | null>{
    try{
       const auth = getAuth(adminApp);
-      return await auth.verifyIdToken(token);
+      const decoded = await auth.verifyIdToken(token);
+
+      if(decoded.email){
+
+         const data={
+            uid: decoded.uid,
+            email: decoded.email,
+            displayName: "",
+         }
+
+         const userDoc = await getFirestore().collection('users').doc(decoded.uid).get();
+
+         if (userDoc.exists) {
+            const userFirestoreData = userDoc.data();
+
+
+            if(!userFirestoreData?.isActive){
+               return null
+            }else{
+               data.displayName = userFirestoreData.name as string
+               return {
+                  ...data,
+                  ...userFirestoreData,
+               };
+            }
+         }
+      }else{
+         return null;
+      }
    }catch{
       return null;
    }
- }
+}
 
 export { adminDb };

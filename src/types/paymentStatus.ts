@@ -1,1 +1,1 @@
-export type PaymentStatus = "Pending" | "Paid" | "Expired";
+export type PaymentStatus = "Pending" | "Paid" | "Marked";

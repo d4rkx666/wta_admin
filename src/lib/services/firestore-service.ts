@@ -1,13 +1,12 @@
 import { MultipleDoc } from '@/types/multipleDocsToInsert';
 import { adminDb } from '../firebase/admin';
-import { DocumentData } from 'firebase-admin/firestore';
 
 /* eslint-disable */
 class FirestoreService {
-  async getDocument(collection: string, docId: string): Promise<DocumentData | null> {
+  async getDocument(collection: string, docId: string): Promise<any | null> {
     const docRef = adminDb.collection(collection).doc(docId);
     const doc = await docRef.get();
-    return doc.exists? doc : null;
+    return doc.exists? doc.data() : null;
   }
 
   async setDocument(collection: string, docId: string, data: any): Promise<void> {
@@ -53,13 +52,28 @@ class FirestoreService {
   }
 
   async setMultipleDocuments(data:MultipleDoc[]): Promise<void>{
-    await adminDb.runTransaction( async () => {
+    await adminDb.runTransaction( async (transaction) => {
       for (const docData of data) {
         const docRef = adminDb.collection(docData.collection).doc(docData.docId);
-        docRef.set(docData.data, { merge: true }); 
+        transaction.set(docRef, docData.data, { merge: true }); 
       }
     });
   }
+
+  async checkUserRole(uid: string):Promise<boolean> {
+  try {
+    const userDoc = await adminDb.collection('users').doc(uid).get();
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      if (userData?.role === 'admin') {
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
 }
 /* eslint-enable */
 

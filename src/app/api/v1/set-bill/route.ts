@@ -1,4 +1,5 @@
 
+import { getSession } from '@/lib/auth';
 import { firestoreService } from '@/lib/services/firestore-service';
 import { Bill } from '@/types/bill';
 import { MultipleDoc } from '@/types/multipleDocsToInsert';
@@ -9,6 +10,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: Request) {
   const {bill, tenantsAndPayments}: {bill: Bill, tenantsAndPayments:{tenant: Tenant; payment: Payment }[]} = await req.json();
+
+  // Check auth
+  if(!getSession()){
+    return NextResponse.json({ success: false, message: "User not authenticated" });
+  }
 
   try {
     if (bill.id == "") {
@@ -23,6 +29,7 @@ export async function POST(req: Request) {
       split.payment.status = "Pending";
       split.payment.tenant_id = split.tenant.id
       split.payment.type="bills";
+      split.payment.dueDate = new Date(new Date(new Date().setMonth(new Date().getMonth() + 1))); // one month after
       split.payment.createdAt = new Date(Date.now());
       return split.payment;
     })
@@ -38,8 +45,6 @@ export async function POST(req: Request) {
       }
       dataToInsert.push(toInsert);
     }
-
-    console.log(dataToInsert)
     
     await firestoreService.setMultipleDocuments(dataToInsert);
     return NextResponse.json({ success: true });

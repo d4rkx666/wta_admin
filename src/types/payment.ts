@@ -1,6 +1,6 @@
 import { PaymentStatus } from "./paymentStatus";
 
-type PaymentType = "rent" | "deposit" | "bills";
+export type PaymentType = "rent" | "deposit" | "bills";
 type PaymentMethod = "E-Transfer" | "Credit/Debit Card" | "Cash";
 
 export type Payment = {
@@ -13,7 +13,10 @@ export type Payment = {
    amount_payment: number;
    amount_paid: number;
    is_current: boolean;
+   dueDate: Date;
+   paidDate: Date;
    createdAt: Date;
+   paymentVerifiedDate: Date;
    status: PaymentStatus;
 };
 
@@ -25,6 +28,9 @@ export const PaymentDefaultVal:Payment = {
    amount_payment: 0,
    amount_paid: 0,
    is_current: true,
+   dueDate: new Date(Date.now()),
+   paidDate: new Date(Date.now()),
    createdAt: new Date(Date.now()),
+   paymentVerifiedDate: new Date(Date.now()),
    status: "Pending",
 }

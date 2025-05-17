@@ -5,8 +5,10 @@ import { useState } from 'react';
 import Sidebar from './Sidebar';
 import { logout_user } from '@/hooks/logout';
 import { useRouter } from 'next/navigation';
+import { useAuth } from './context/AuthProvider';
 
 export default function AdminHeader() {
+  const {email, name} = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const [toggleMenu, setToggleMenu] = useState("hidden");
   const router = useRouter()
@@ -81,8 +83,8 @@ export default function AdminHeader() {
               {showDropdown && (
                 <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 py-1 z-20">
                   <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-900">Admin User</p>
-                    <p className="text-xs text-gray-500">admin@example.com</p>
+                    <p className="text-sm font-medium text-gray-900">{name}</p>
+                    <p className="text-xs text-gray-500">{email}</p>
                   </div>
                   <a
                     href="#"

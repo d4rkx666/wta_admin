@@ -64,16 +64,13 @@ const TenantManagement = () => {
       e.preventDefault();
       try {
          setIsLoading(true);
-         let response = undefined;
 
          const tenantToInsert: Tenant = currentTenant;
          if (!hasCouple) {
             tenantToInsert.couple_name = "";
          }
 
-         console.log(tenantToInsert)
-
-         response = await set_tenant(tenantToInsert, depositPayment, firstRentPayment);
+         const response = await set_tenant(tenantToInsert, depositPayment, firstRentPayment);
 
          const data = await response.json();
          if (data.success) {
@@ -179,7 +176,7 @@ const TenantManagement = () => {
             amount_payment = currentRoom?.price || 0;
          }
       }
-      setFirstRentPayment({ ...firstRentPayment, amount_payment: amount_payment })
+      setFirstRentPayment({ ...firstRentPayment, amount_paid: amount_payment })
    }, [tenantPaidFirstMonth, tenantPaidOtherAmount, currentRoom.price])
 
    if (loadingProperties || loadingTenants || loadingPayments) {
@@ -321,7 +318,7 @@ const TenantManagement = () => {
                                     <div className="flex items-center">
                                        <CurrencyDollarIcon className="h-4 w-4 text-gray-500 mr-1" />
                                        <span>{currentRent?.amount_payment.toFixed(2)}</span>
-                                       {currentRent?.amount_payment ? (
+                                       {currentRent?.status === "Paid" ? (
                                           <span className="ml-2 px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Paid</span>
                                        ) : (
                                           <span className="ml-2 px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Pending</span>
@@ -607,7 +604,6 @@ const TenantManagement = () => {
                                           id="depositAmount"
                                           name="depositAmount"
                                           min="0"
-                                          step="0.01"
                                           disabled={currentTenant.id ? true : false}
                                           value={depositPayment?.amount_payment || ''}
                                           onChange={(e) => setDepositPayment({ ...depositPayment, amount_payment: parseFloat(e.target.value) || 0 })}
@@ -654,7 +650,7 @@ const TenantManagement = () => {
                                              disabled={currentTenant.id ? true : false}
                                              onChange={(e) => {
                                                 setTenantPaidOtherAmount(!e.target.checked);
-                                                setFirstRentPayment({ ...firstRentPayment, amount_payment: tenantPaidOtherAmount ? currentRoom.price : firstRentPayment?.amount_payment })
+                                                setFirstRentPayment({ ...firstRentPayment, amount_paid: tenantPaidOtherAmount ? currentRoom.price : firstRentPayment?.amount_payment })
                                              }}
                                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-gray-200"
                                           />
@@ -681,10 +677,10 @@ const TenantManagement = () => {
                                                 name="tenantPaidAmount"
                                                 min="0"
                                                 step="0.01"
-                                                value={firstRentPayment?.amount_payment || ''}
+                                                value={firstRentPayment?.amount_paid || ''}
                                                 disabled={currentTenant.id ? true : false}
                                                 onChange={(e) => setFirstRentPayment({
-                                                   ...firstRentPayment, amount_payment: parseFloat(e.target.value) || 0
+                                                   ...firstRentPayment, amount_paid: parseFloat(e.target.value) || 0
                                                 })}
                                                 className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border disabled:bg-gray-200"
                                                 placeholder="Enter amount paid"

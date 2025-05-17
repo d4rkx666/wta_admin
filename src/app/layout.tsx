@@ -7,6 +7,7 @@ import { NotificationProvider } from "./context/NotificationContext";
 import { GlobalVarProvider } from "./context/VariableContext";
 import { getSession } from "@/lib/auth";
 import AdminLogin from "./LoginPage";
+import { AuthProvider } from "./context/AuthProvider";
 
 export const metadata: Metadata = {
   title: "Welcome Travel Accommodation",
@@ -20,29 +21,37 @@ export default async function RootLayout({
 }>) {
 
   const session = await getSession();
+  let name = "";
+  let email = "";
+
   if (!session) {
     return (
       <AdminLogin />
     );
+  }else{
+    name = session.displayName;
+    email = session.email;
   }
 
   return (
     <html lang="en">
       <body>
-        <GlobalVarProvider>
-          <NotificationProvider>
-            <div className="min-h-screen bg-gray-50 flex flex-col">
-              <Header />
-              <div className="flex flex-1">
-                <Sidebar className={"hidden md:flex md:w-64 md:flex-col"}/>
-                <main className="flex-1 p-6 overflow-auto">
-                  {children}
-                </main>
+        <AuthProvider isAuth={true} name={name} email={email} >
+          <GlobalVarProvider>
+            <NotificationProvider>
+              <div className="min-h-screen bg-gray-50 flex flex-col">
+                <Header />
+                <div className="flex flex-1">
+                  <Sidebar className={"hidden md:flex md:w-64 md:flex-col"}/>
+                  <main className="flex-1 p-6 overflow-auto">
+                    {children}
+                  </main>
+                </div>
+                <Footer />
               </div>
-              <Footer />
-            </div>
-          </NotificationProvider>
-        </GlobalVarProvider>
+            </NotificationProvider>
+          </GlobalVarProvider>
+        </AuthProvider>
       </body>
     </html>
   );

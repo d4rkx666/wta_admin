@@ -1,17 +1,25 @@
 import { cookies } from 'next/headers';
 import { verifyIdToken } from './firebase/admin';
+import { firestoreService } from '@/lib/services/firestore-service';
 
 
-export async function getSession() {
+export async function getSession():Promise<{uid: string, displayName: string, email: string, firstTime: boolean} | null> {
   const gettingCookies = await cookies();
   const session = gettingCookies.get('session')?.value;
   if (!session) return null;
 
   try {
-    return await verifyIdToken(session);
-  } catch (error) {
+    const check =  await verifyIdToken(session);
+    if(check){
+      const isAdminUser = await firestoreService.checkUserRole(check.uid)
+      if(!isAdminUser){
+        await deleteSession();
+        return null;
+      }
+    }
+    return check;
+  } catch{
     await deleteSession();
-    console.error('Error verifying session cookie:', error);
     return null;
   }
 }
