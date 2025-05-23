@@ -14,6 +14,8 @@ import { useLiveTenants } from '@/hooks/useLiveTenants';
 import { useLivePayments } from '@/hooks/useLivePayments';
 import ModalConfirmation from '@/app/components/common/ModalConfirmation';
 import { del_tenant } from '@/hooks/delTenant';
+import { get_tenant_files } from '@/hooks/getTenantFiles';
+import Image from 'next/image';
 
 const TenantManagement = () => {
    const { showNotification } = useNotification();
@@ -70,7 +72,20 @@ const TenantManagement = () => {
             tenantToInsert.couple_name = "";
          }
 
-         const response = await set_tenant(tenantToInsert, depositPayment, firstRentPayment);
+         // Prepare FormData
+         const formData = new FormData();
+         formData.append('tenant', JSON.stringify(tenantToInsert));
+         formData.append('deposit', JSON.stringify(depositPayment));
+         formData.append('rent', JSON.stringify(firstRentPayment));
+
+         if(contractFile){
+            formData.append('contractFile', contractFile);
+         }
+         if(idFile){
+            formData.append('idFile', idFile);
+         }
+
+         const response = await set_tenant(formData);
 
          const data = await response.json();
          if (data.success) {
@@ -82,6 +97,8 @@ const TenantManagement = () => {
       } catch (err) {
          console.log(err);
       } finally {
+         setContractFile(null);
+         setIdFile(null)
          setIsLoading(false);
       }
    };
@@ -131,9 +148,13 @@ const TenantManagement = () => {
       setHasCouple(false);
       setTenantPaidFirstMonth(false);
       setTenantPaidOtherAmount(false);
+      setContractFile(null);
+      setIdFile(null);
+      setIdPreview(null);
+      setContractPreview(null)
    }
 
-   const handleOnClickEdit = (room: Room | undefined, deposit: Payment | undefined, tenant: Tenant) =>{
+   const handleOnClickEdit = async (room: Room | undefined, deposit: Payment | undefined, tenant: Tenant) =>{
       setCurrentTenant(tenant);
       if (room) {
          setCurrentRooms([]); // clear rooms
@@ -146,13 +167,17 @@ const TenantManagement = () => {
       if(tenant.couple_name){
          setHasCouple(true)
       }
+
+      const data = await get_tenant_files(tenant);
+      const resp:{success:boolean, contractUrl:string, idUrl:string} = await data.json();
+
+      if(resp.success){
+         setContractPreview(resp.contractUrl)
+         setIdPreview(resp.idUrl)
+      }
+
       setShowCreateModal(true);
    }
-
-   /*const handleOnClickDel = (tenant:Tenant)=>{
-      setCurrentTenant(tenant);
-      setIsModalConfirmOpen(true);
-   }*/
 
    // Filter tenants
    const filteredTenants = tenants.filter(tenant => {
@@ -714,6 +739,17 @@ const TenantManagement = () => {
                                           />
                                        </label>
                                     </div>
+                                    { contractPreview && 
+                                       <div className='mt-5 text-center'>
+                                          <span className='mb-1'>Preview</span>
+                                          <iframe
+                                          key={contractPreview}
+                                          src={contractPreview.slice(0,4) === "blob" ? contractPreview : contractPreview+"?"+new Date().getTime()}
+                                          style={{ border: 'none' }}
+                                          title="PDF Viewer"
+                                          ></iframe>
+                                       </div>
+                                    }
                                     {contractPreview && (
                                        <div className="mt-2">
                                           <a
@@ -750,6 +786,19 @@ const TenantManagement = () => {
                                           />
                                        </label>
                                     </div>
+                                    { idPreview && 
+                                       <div className='mt-5 text-center'>
+                                          <span className='mb-1'>Preview</span>
+                                          <Image
+                                          key={idPreview}
+                                          alt='id_file'
+                                          src={idPreview.slice(0,4) === "blob" ? idPreview : idPreview+"?"+new Date().getTime()}
+                                          width={400}
+                                          height={50}
+                                          />
+                                       </div>
+                                    }
+
                                     {idPreview && (
                                        <div className="mt-2">
                                           <a

@@ -8,8 +8,8 @@ export type Tenant = {
    lease_start: Date;
    lease_end: Date;
    has_paid_deposit: boolean;
-   contract_file?: string;
-   id_file?: string;
+   contract_file_id?: string;
+   identification_file_id?: string;
 };
 
 export const TenantDefaultVal:Tenant = {

@@ -1,3 +1,4 @@
+import { Timestamp } from "firebase/firestore";
 import { PaymentStatus } from "./paymentStatus";
 
 export type PaymentType = "rent" | "deposit" | "bills";
@@ -13,10 +14,10 @@ export type Payment = {
    amount_payment: number;
    amount_paid: number;
    is_current: boolean;
-   dueDate: Date;
-   paidDate: Date;
-   createdAt: Date;
-   paymentVerifiedDate: Date;
+   dueDate: Timestamp | Date;
+   paidDate: Timestamp | Date;
+   createdAt: Timestamp | Date;
+   paymentVerifiedDate: Timestamp | Date;
    status: PaymentStatus;
 };
 

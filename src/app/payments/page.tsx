@@ -18,7 +18,6 @@ const PaymentsDashboard = () => {
    const [showMarkModal, setShowMarkModal] = useState(false);
    const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
    const [markPaymentAmount, setMarkPaymentAmount] = useState(0);
-   const [markPaymentDate, setMarkPaymentDate] = useState(new Date().toISOString().slice(0, 10));
 
    const {data: payments, loading: loadingPayments} = useLivePayments();
    const {data: tenants, loading: loadingTenants} = useLiveTenants();
@@ -202,9 +201,6 @@ const PaymentsDashboard = () => {
                            <tr key={payment.id} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap">
                                  <div className="font-medium text-gray-900">{tenant?.name}</div>
-                                 {payment.e_transfer_email && (
-                                    <div className="text-sm text-gray-500">{payment.e_transfer_email}</div>
-                                 )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                  <div className="text-gray-900">{property?.location}</div>
@@ -215,6 +211,9 @@ const PaymentsDashboard = () => {
                               <td className="px-6 py-4 whitespace-nowrap">
                                  <div className="text-gray-900">
                                     {payment.payment_method === 'E-Transfer' ? 'E-Transfer' : payment.payment_method}
+                                    {payment.e_transfer_email && (
+                                       <div className="text-sm text-gray-500">{payment.e_transfer_email}</div>
+                                    )}
                                  </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -320,18 +319,6 @@ const PaymentsDashboard = () => {
                            <p className="text-xs text-gray-500 mt-1">
                               Full amount: ${selectedPayment.amount_payment.toFixed(2)}
                            </p>
-                        </div>
-
-                        <div>
-                           <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
-                           <input
-                              type="date"
-                              value={markPaymentDate}
-                              disabled
-                              onChange={(e) => setMarkPaymentDate(e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              required
-                           />
                         </div>
                      </div>
 

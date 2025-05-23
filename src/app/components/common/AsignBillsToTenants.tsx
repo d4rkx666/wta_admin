@@ -43,7 +43,7 @@ export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChan
                      </div>
                      <input
                         type="number"
-                        value={split.payment.amount_payment && split.payment.amount_payment.toFixed(2) || ""}
+                        value={split.payment.amount_payment && split.payment.amount_payment || ""}
                         onChange={(e) => handlePaymentAmountChange(split.tenant.id ? split.tenant.id : "", Number(e.target.value))}
                         className="block w-full pl-7 pr-12 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                         placeholder="0.00"

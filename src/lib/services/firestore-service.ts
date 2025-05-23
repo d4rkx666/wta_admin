@@ -9,6 +9,12 @@ class FirestoreService {
     return doc.exists? doc.data() : null;
   }
 
+  async getCollection(collection: string): Promise<any | null> {
+    const docRef = adminDb.collection(collection);
+    const snap = await docRef.get();
+    return snap.docs? snap.docs.map(doc => doc.data()) : null;
+  }
+
   async setDocument(collection: string, docId: string, data: any): Promise<void> {
     const docRef = adminDb.collection(collection).doc(docId);
     await docRef.set(data, { merge: true }); // merge: true updates existing docs

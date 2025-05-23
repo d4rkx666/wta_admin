@@ -46,7 +46,7 @@ const BillsManagement = () => {
    });
 
    const handlePaymentAmountChange = (id: string, value: number) => {
-      const newAmount = value;
+      const newAmount = Number(value.toFixed(2));
       const newSplit = splitTenants.map((split, i) =>{
          if(splitTenants[i].tenant.id === id){
             splitTenants[i].payment.amount_payment = newAmount
@@ -65,8 +65,6 @@ const BillsManagement = () => {
       e.preventDefault();
       try {
          setIsLoading(true);
-
-         console.log(currentBill,splitTenants)
 
          const response = await set_bill(currentBill, splitTenants);
 
@@ -94,7 +92,7 @@ const BillsManagement = () => {
       });
 
       if (propertyTenants.length > 0) {
-         const splitAmount = currentBill.amount / propertyTenants.length;
+         const splitAmount = Number((currentBill.amount / propertyTenants.length).toFixed(2));
          const newSplits = propertyTenants.map(tenant => {
 
             const t:Partial<Tenant> = {
@@ -121,7 +119,7 @@ const BillsManagement = () => {
 
    useEffect(()=>{
       if (splitEvenly) { // Split Evenly only when true
-         const splitAmount = currentBill.amount / splitTenants.length; // divide the amount
+         const splitAmount = Number((currentBill.amount / splitTenants.length).toFixed(2));
          const newSplits = splitTenants.map(split => ({
             tenant: split.tenant,
             payment: {

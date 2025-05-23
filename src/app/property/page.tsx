@@ -2,7 +2,6 @@
 import { PlusIcon, PencilIcon, TrashIcon, MapPinIcon, LinkIcon, XMarkIcon, FunnelIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useEffect, useState, FormEvent } from 'react';
 import { Property, PropertyDefaultVal } from '@/types/property';
-import { Amenity } from '@/types/amenity';
 import { useLiveProperties } from '@/hooks/useLiveProperties';
 import { set_property } from '@/hooks/setProperty';
 import { del_property } from '@/hooks/delProperty';
@@ -50,7 +49,6 @@ export default function PropertyManagementPage() {
       
       if (filters.search) {
          const searchTerm = filters.search.toLowerCase();
-         console.log(searchTerm)
          result = result.filter(property => 
             property.title.toLowerCase().includes(searchTerm) || 
             property.description.toLowerCase().includes(searchTerm) ||
@@ -71,6 +69,12 @@ export default function PropertyManagementPage() {
       setFilteredProperties(result);
       setCurrentPage(1); // Reset to first page when filters change
    }, [properties, filters]);
+
+   // handle close modal
+   const handleCloseModal = ()=>{
+      setCurrentProperty(PropertyDefaultVal);
+      setIsModalOpen(false)
+   }
 
    // Get current properties for pagination
    const indexOfLastItem = currentPage * itemsPerPage;
@@ -94,29 +98,7 @@ export default function PropertyManagementPage() {
       e.preventDefault();
       try {
          setIsLoading(true);
-         let response = undefined;
-         const form = e.target as HTMLFormElement;
-         const propertyToInsert = PropertyDefaultVal;
-
-         propertyToInsert.type = (form.elements.namedItem('type') as HTMLInputElement).value;
-         propertyToInsert.title = (form.elements.namedItem('title') as HTMLInputElement).value;
-         propertyToInsert.description = (form.elements.namedItem('description') as HTMLTextAreaElement).value;
-         propertyToInsert.location = (form.elements.namedItem('location') as HTMLInputElement).value;
-         propertyToInsert.num_shared_washroom = Number((form.elements.namedItem('washrooms') as HTMLInputElement).value);
-         propertyToInsert.url_map = (form.elements.namedItem('mapUrl') as HTMLInputElement).value;
-         const amenities = form.querySelectorAll('input[name="amenities"]') as NodeListOf<HTMLInputElement>;
-
-         const selectedAmenities: Amenity[] = Array.from(amenities)
-            .map((checkbox) => {
-               return {
-                  name: checkbox.value,
-                  available: checkbox.checked
-               }
-            });
-
-         propertyToInsert.global_amenities = selectedAmenities;
-         propertyToInsert.id = currentProperty.id != "" ? currentProperty.id : "";
-         response = await set_property(propertyToInsert);
+         const response = await set_property(currentProperty);
          
          const data = await response.json();
          if (data.success) {
@@ -201,7 +183,7 @@ export default function PropertyManagementPage() {
                </button>
                <button
                   type="button"
-                  onClick={() => { setIsModalOpen(true); setCurrentProperty(PropertyDefaultVal) }}
+                  onClick={() => {setIsModalOpen(true); setCurrentProperty({...currentProperty, global_amenities: listGlobalAmenities.map(amenity=>({name:amenity, available: false}))})}}
                   className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                >
                   <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
@@ -503,7 +485,7 @@ export default function PropertyManagementPage() {
                <div
                   className="fixed inset-0 bg-gray-600/70 transition-opacity"
                   aria-hidden="true"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={handleCloseModal}
                ></div>
 
                <div className="flex min-h-screen items-center justify-center p-4 text-center">
@@ -511,12 +493,12 @@ export default function PropertyManagementPage() {
                      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4">
                         <div className="flex items-center justify-between">
                            <h3 className="text-lg font-semibold text-white">
-                              {currentProperty.id != "" ? 'Edit Property' : 'Add New Property'}
+                              {currentProperty.id ? 'Edit Property' : 'Add New Property'}
                            </h3>
                            <button
                               type="button"
                               className="rounded-md p-1 text-white hover:bg-blue-500 focus:outline-none"
-                              onClick={() => setIsModalOpen(false)}
+                              onClick={handleCloseModal}
                            >
                               <XMarkIcon className="h-6 w-6" />
                            </button>
@@ -536,7 +518,8 @@ export default function PropertyManagementPage() {
                                        id="title"
                                        name="title"
                                        required
-                                       defaultValue={currentProperty?.title || ''}
+                                       value={currentProperty.title}
+                                       onChange={(e)=>setCurrentProperty({...currentProperty, title:e.target.value})}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border peer"
                                        placeholder="Sunshine Apartments"
                                     />
@@ -552,7 +535,8 @@ export default function PropertyManagementPage() {
                                     <select
                                        id="type"
                                        name="type"
-                                       defaultValue={currentProperty?.type || ''}
+                                       value={currentProperty.type}
+                                       onChange={(e)=>setCurrentProperty({...currentProperty, type:e.target.value})}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border bg-white"
                                     >
                                        {listPropertyTypes.map((type, i)=>(
@@ -571,7 +555,8 @@ export default function PropertyManagementPage() {
                                     id="description"
                                     name="description"
                                     rows={3}
-                                    defaultValue={currentProperty?.description || ''}
+                                    value={currentProperty.description}
+                                    onChange={(e)=>setCurrentProperty({...currentProperty, description:e.target.value})}
                                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border"
                                     placeholder="Describe the property features and amenities..."
                                  />
@@ -591,7 +576,8 @@ export default function PropertyManagementPage() {
                                           id="location"
                                           name="location"
                                           required
-                                          defaultValue={currentProperty?.location || ''}
+                                          value={currentProperty.location}
+                                          onChange={(e)=>setCurrentProperty({...currentProperty, location:e.target.value})}
                                           className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border peer"
                                           placeholder="123 Main St, City, State"
                                        />
@@ -610,7 +596,8 @@ export default function PropertyManagementPage() {
                                        id="washrooms"
                                        name="washrooms"
                                        min="0"
-                                       defaultValue={currentProperty?.num_shared_washroom || 0}
+                                       value={currentProperty.num_shared_washroom || ""}
+                                       onChange={(e)=>setCurrentProperty({...currentProperty, num_shared_washroom: Number(e.target.value)})}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border"
                                     />
                                  </div>
@@ -629,7 +616,8 @@ export default function PropertyManagementPage() {
                                        id="mapUrl"
                                        name="mapUrl"
                                        required
-                                       defaultValue={currentProperty?.url_map || ''}
+                                       value={currentProperty.url_map}
+                                       onChange={(e)=>setCurrentProperty({...currentProperty, url_map:e.target.value})}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border peer"
                                        placeholder="https://maps.example.com/property"
                                     />
@@ -650,7 +638,20 @@ export default function PropertyManagementPage() {
                                              type="checkbox"
                                              value={amenity}
                                              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                             defaultChecked={currentProperty?.global_amenities.some(a => a.name === amenity && a.available) || false}
+                                             checked={currentProperty?.global_amenities.some(a => a.name === amenity && a.available) || false}
+                                             onChange={(e)=>{
+                                                const updatedAmenities = currentProperty.global_amenities.map(a => 
+                                                   a.name === amenity ? {...a, available: e.target.checked} : a
+                                                );
+
+                                                if (!updatedAmenities.some(a => a.name === amenity)) {
+                                                   updatedAmenities.push({name: amenity, available: e.target.checked});
+                                                }
+                                                setCurrentProperty({
+                                                   ...currentProperty,
+                                                   global_amenities: updatedAmenities
+                                                });
+                                             }}
                                           />
                                           <label htmlFor={`amenity-${amenity}`} className="ml-2 text-sm text-gray-700">
                                              {amenity}
@@ -664,7 +665,7 @@ export default function PropertyManagementPage() {
                            <div className="mt-6 flex justify-end space-x-3">
                               <button
                                  type="button"
-                                 onClick={() => setIsModalOpen(false)}
+                                 onClick={handleCloseModal}
                                  className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                               >
                                  Cancel
