@@ -10,19 +10,23 @@ import { useRoom } from '@/hooks/useRoom';
 import { useLiveProperties } from '@/hooks/useLiveProperties';
 import { notify_payment } from '@/hooks/notifyPayment';
 import { useNotification } from '../context/NotificationContext';
+import { get_proof_image } from '@/hooks/getProofImage';
+import Image from 'next/image';
 
 const PaymentsDashboard = () => {
-   const {showNotification} = useNotification()
+   const { showNotification } = useNotification()
    const [activeTab, setActiveTab] = useState<PaymentStatus | 'all'>("Marked");
    const [paymentTypeFilter, setPaymentTypeFilter] = useState<PaymentType | 'all'>('all');
    const [showMarkModal, setShowMarkModal] = useState(false);
    const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
    const [markPaymentAmount, setMarkPaymentAmount] = useState(0);
+   const [imageProof, setImageProof] = useState<string | null>(null);
+   const [showImagePreview, setShowImagePreview] = useState(false);
 
-   const {data: payments, loading: loadingPayments} = useLivePayments();
-   const {data: tenants, loading: loadingTenants} = useLiveTenants();
-   const {data: rooms, loading: loadingRooms} = useRoom();
-   const {data: properties, loading: loadingProperties} = useLiveProperties();
+   const { data: payments, loading: loadingPayments } = useLivePayments();
+   const { data: tenants, loading: loadingTenants } = useLiveTenants();
+   const { data: rooms, loading: loadingRooms } = useRoom();
+   const { data: properties, loading: loadingProperties } = useLiveProperties();
 
    // Filter payments based on active tab and type filter
    const filteredPayments = payments.filter(payment => {
@@ -40,34 +44,52 @@ const PaymentsDashboard = () => {
    const totalMarked = filteredPayments.filter(p => p.status === 'Marked').reduce((sum, p) => sum + p.amount_paid, 0);
    const totalPaid = filteredPayments.filter(p => p.status === 'Paid').reduce((sum, p) => sum + p.amount_paid, 0);
 
-   const markPaymentAsPaid = async() => {
+   const markPaymentAsPaid = async () => {
       if (!selectedPayment) return;
-      
-      try{
+
+      try {
          const data = await notify_payment(selectedPayment);
          const resp = await data.json();
-         if(resp.success){
+         if (resp.success) {
             showNotification("success", "Payment has changed its status to Paid successfully");
             setShowMarkModal(false);
-         }else{
+         } else {
             showNotification("error", "Something went wrong... Please try again later.");
          }
-      }catch{
+      } catch {
 
-      }finally{
+      } finally {
          setSelectedPayment(null);
       }
    };
 
+   const handleConfirmPayment = async (payment: Payment) => {
+      setSelectedPayment(payment);
+      setMarkPaymentAmount(payment.amount_payment);
+      setShowMarkModal(true);
+
+      if (payment.proof_img_id) {
+         const response = await get_proof_image(payment);
+         const data = await response.json();
+
+         if (data.success) {
+            if (data.proofUrl) {
+               setImageProof(data.proofUrl);
+            }
+         }
+      }
+   }
+
+
    //eslint-disable-next-line
    const formatDate = (date: any) => {
-      if(date){
+      if (date) {
          return date.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       }
    };
 
-   if(loadingPayments || loadingTenants || loadingRooms || loadingProperties){
-      return <Loader/>
+   if (loadingPayments || loadingTenants || loadingRooms || loadingProperties) {
+      return <Loader />
    }
 
    return (
@@ -187,84 +209,81 @@ const PaymentsDashboard = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                      {filteredPayments.length > 0 ? (
                         filteredPayments.map((payment) => {
-                           
+
                            // find info for each payment
                            const tenant = tenants.find(tenant => tenant.id === payment.tenant_id)
-                           const property = properties.find(property =>{
-                              const id_property = rooms.find(room=> room.id === tenant?.room_id)?.id_property
-                              if(property.id === id_property){
+                           const property = properties.find(property => {
+                              const id_property = rooms.find(room => room.id === tenant?.room_id)?.id_property
+                              if (property.id === id_property) {
                                  return true;
                               }
                               return false;
                            })
                            return (
-                           <tr key={payment.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="font-medium text-gray-900">{tenant?.name}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-gray-900">{property?.location}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-gray-900 capitalize">{payment.type}</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-gray-900">
-                                    {payment.payment_method === 'E-Transfer' ? 'E-Transfer' : payment.payment_method}
-                                    {payment.e_transfer_email && (
-                                       <div className="text-sm text-gray-500">{payment.e_transfer_email}</div>
-                                    )}
-                                 </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-gray-900">
-                                    ${payment.amount_paid > 0 ? payment.amount_paid.toFixed(2) : payment.amount_payment.toFixed(2)}
-                                    {payment.amount_paid > 0 && payment.amount_paid !== payment.amount_payment && (
-                                       <span className="text-sm text-gray-500 line-through ml-2">
-                                          ${payment.amount_payment.toFixed(2)}
-                                       </span>
-                                    )}
-                                 </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <div className="text-gray-900">
-                                    {formatDate(payment.dueDate)}
-                                 </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                 <span className={`px-2 py-1 text-xs rounded-full ${payment.status === 'Paid'
+                              <tr key={payment.id} className="hover:bg-gray-50">
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="font-medium text-gray-900">{tenant?.name}</div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-gray-900">{property?.location}</div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-gray-900 capitalize">{payment.type}</div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-gray-900">
+                                       {payment.payment_method === 'E-Transfer' ? 'E-Transfer' : payment.payment_method}
+                                       {payment.e_transfer_email && (
+                                          <div className="text-sm text-gray-500">{payment.e_transfer_email}</div>
+                                       )}
+                                    </div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-gray-900">
+                                       ${payment.amount_paid > 0 ? payment.amount_paid.toFixed(2) : payment.amount_payment.toFixed(2)}
+                                       {payment.amount_paid > 0 && payment.amount_paid !== payment.amount_payment && (
+                                          <span className="text-sm text-gray-500 line-through ml-2">
+                                             ${payment.amount_payment.toFixed(2)}
+                                          </span>
+                                       )}
+                                    </div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-gray-900">
+                                       {formatDate(payment.dueDate)}
+                                    </div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`px-2 py-1 text-xs rounded-full ${payment.status === 'Paid'
                                        ? 'bg-green-100 text-green-800'
                                        : payment.status === 'Pending'
                                           ? 'bg-yellow-100 text-yellow-800'
                                           : 'bg-blue-100 text-blue-800'
-                                    }`}>
-                                    {payment.status}
-                                    {payment.status === 'Marked' && (
-                                       <span className="ml-1">(${payment.amount_paid.toFixed(2)})</span>
-                                    )}
-                                 </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                 <div className="flex justify-end space-x-2">
-                                    {payment.status === "Marked" && (
-                                       <button
-                                          onClick={() => {
-                                             setSelectedPayment(payment);
-                                             setMarkPaymentAmount(payment.amount_payment);
-                                             setShowMarkModal(true);
-                                          }}
-                                          className="bg-green-400 rounded-full px-2 py-1 text-white hover:green-blue-900 hover:bg-green-500"
-                                       >
-                                          Mark as Paid
-                                       </button>
-                                    )}
-                                    {payment.status === 'Paid' && (
-                                       <span className="text-gray-400">Verified</span>
-                                    )}
-                                 </div>
-                              </td>
-                           </tr>
-                        )})
+                                       }`}>
+                                       {payment.status}
+                                       {payment.status === 'Marked' && (
+                                          <span className="ml-1">(${payment.amount_paid.toFixed(2)})</span>
+                                       )}
+                                    </span>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <div className="flex justify-end space-x-2">
+                                       {payment.status === "Marked" && (
+                                          <button
+                                             onClick={() => handleConfirmPayment(payment)}
+                                             className="bg-green-400 rounded-full px-2 py-1 text-white hover:green-blue-900 hover:bg-green-500"
+                                          >
+                                             Confirm payment
+                                          </button>
+                                       )}
+                                       {payment.status === 'Paid' && (
+                                          <span className="text-gray-400">Verified</span>
+                                       )}
+                                    </div>
+                                 </td>
+                              </tr>
+                           )
+                        })
                      ) : (
                         <tr>
                            <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
@@ -279,66 +298,114 @@ const PaymentsDashboard = () => {
 
          {/* Mark Payment Modal */}
          {showMarkModal && selectedPayment && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-               <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-                  <div className="p-6">
-                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold text-gray-900">
-                           Mark Payment as Received
-                        </h2>
-                        <button
-                           onClick={() => setShowMarkModal(false)}
-                           className="text-gray-400 hover:text-gray-500"
-                        >
-                           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                           </svg>
-                        </button>
-                     </div>
-
-                     <div className="space-y-4">
-                        <div>
-                           <p className="text-sm text-gray-600 mb-2">
-                              You&apos;re marking a payment for <span className="font-semibold">${selectedPayment.amount_payment.toFixed(2)}</span> as received.
-                           </p>
+            <>
+               {/* Main Modal */}
+               <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+                     <div className="p-6">
+                        <div className="flex justify-between items-center mb-4">
+                           <h2 className="text-xl font-bold text-gray-900">
+                              Mark Payment as Received
+                           </h2>
+                           <button
+                              onClick={() => setShowMarkModal(false)}
+                              className="text-gray-400 hover:text-gray-500"
+                           >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                           </button>
                         </div>
 
-                        <div>
-                           <label className="block text-sm font-medium text-gray-700 mb-1">Amount Received</label>
-                           <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              disabled
-                              max={selectedPayment.amount_payment}
-                              value={markPaymentAmount}
-                              onChange={(e) => setMarkPaymentAmount(parseFloat(e.target.value))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              required
-                           />
-                           <p className="text-xs text-gray-500 mt-1">
-                              Full amount: ${selectedPayment.amount_payment.toFixed(2)}
-                           </p>
-                        </div>
-                     </div>
+                        <div className="space-y-4">
+                           <div>
+                              <p className="text-sm text-gray-600 mb-2">
+                                 You&apos;re marking a payment for <span className="font-semibold">${selectedPayment.amount_payment.toFixed(2)}</span> as received.
+                              </p>
+                           </div>
 
-                     <div className="mt-6 flex justify-end space-x-3">
-                        <button
-                           onClick={() => setShowMarkModal(false)}
-                           className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                        >
-                           Cancel
-                        </button>
-                        <button
-                           onClick={markPaymentAsPaid}
-                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                           Mark as Received
-                        </button>
+                           <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Amount Received</label>
+                              <input
+                                 type="number"
+                                 step="0.01"
+                                 min="0"
+                                 disabled
+                                 max={selectedPayment.amount_payment}
+                                 value={markPaymentAmount}
+                                 onChange={(e) => setMarkPaymentAmount(parseFloat(e.target.value))}
+                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                 required
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                 Full amount: ${selectedPayment.amount_payment.toFixed(2)}
+                              </p>
+                           </div>
+
+                           <div className="mt-4">
+                              <h3 className="text-sm font-medium text-gray-700 mb-2">Payment Proof</h3>
+                              <div
+                                 className="relative aspect-square w-full bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
+                                 onClick={() => setShowImagePreview(true)}
+                              >
+                                 {imageProof ? (
+                                    <Image
+                                       src={imageProof}
+                                       alt="Payment proof"
+                                       fill
+                                       className="object-contain"
+                                    />
+                                 ) : (
+                                    <Loader />
+                                 )}
+                              </div>
+                           </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end space-x-3">
+                           <button
+                              onClick={() => setShowMarkModal(false)}
+                              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                           >
+                              Cancel
+                           </button>
+                           <button
+                              onClick={markPaymentAsPaid}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                           >
+                              Mark as Received
+                           </button>
+                        </div>
                      </div>
                   </div>
                </div>
-            </div>
+
+               {/* Image Preview Modal - Only shown when showImagePreview is true */}
+               {showImagePreview && (
+                  <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-[60]">
+                     <div className="relative w-full h-full max-w-4xl max-h-[90vh]">
+                        <button
+                           onClick={() => setShowImagePreview(false)}
+                           className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+                        >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                           </svg>
+                        </button>
+
+                        <div className="w-full h-full flex items-center justify-center">
+                           <Image
+                              src={imageProof || ''}
+                              alt="Payment proof preview"
+                              fill
+                              className="object-contain"
+                              onClick={() => setShowImagePreview(false)}
+                           />
+                        </div>
+                     </div>
+                  </div>
+               )}
+            </>
          )}
       </div>
    );

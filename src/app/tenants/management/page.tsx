@@ -168,12 +168,14 @@ const TenantManagement = () => {
          setHasCouple(true)
       }
 
-      const data = await get_tenant_files(tenant);
-      const resp:{success:boolean, contractUrl:string, idUrl:string} = await data.json();
+      if(tenant.contract_file_id || tenant.identification_file_id){
+         const data = await get_tenant_files(tenant);
+         const resp:{success:boolean, contractUrl:string, idUrl:string} = await data.json();
 
-      if(resp.success){
-         setContractPreview(resp.contractUrl)
-         setIdPreview(resp.idUrl)
+         if(resp.success){
+            setContractPreview(resp.contractUrl ? resp.contractUrl : null)
+            setIdPreview(resp.idUrl ? resp.idUrl : null)
+         }
       }
 
       setShowCreateModal(true);
