@@ -22,11 +22,26 @@ export async function POST(req: Request) {
       bill.createdAt = new Date(Date.now());
     }
 
+    let newBillBalance = bill.balance;
     const payments:Payment[] = tenantsAndPayments.map(split=>{
+      const hasPaid = split.payment.amount_payment === split.payment.amount_paid;
+
+      if(hasPaid){
+        // new bill balance
+        newBillBalance -= split.payment.amount_paid
+        bill.balance = newBillBalance;
+        if(newBillBalance <= 0.01){
+          bill.status = "Paid"
+        }
+
+        // set paid date
+        split.payment.paidDate = new Date();
+      }
+
       split.payment.id = uuidv4();
       split.payment.bill_id = bill.id;
-      split.payment.is_current=true;
-      split.payment.status = "Pending";
+      split.payment.is_current= hasPaid ? false : true;
+      split.payment.status = hasPaid ? "Paid" : "Pending";
       split.payment.tenant_id = split.tenant.id
       split.payment.type="bills";
       split.payment.dueDate = new Date(new Date(new Date().setMonth(new Date().getMonth() + 1))); // one month after

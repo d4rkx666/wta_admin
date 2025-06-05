@@ -1,9 +1,8 @@
-import { cookies } from 'next/headers';
+import { deleteSession } from '@/lib/auth';
 
 export async function POST() {
   try{
-    const getCookies = await cookies();
-    getCookies.delete('session');
+    await deleteSession();
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

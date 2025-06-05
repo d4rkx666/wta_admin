@@ -3,7 +3,7 @@ import { Bill } from "@/types/bill";
 import { Tenant } from "@/types/tenant";
 import { Payment } from "@/types/payment";
 
-export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChange, splitEvenly, setSplitEvenly}: { bill: Bill, tenantSplits:{tenant: Partial<Tenant>; payment: Partial<Payment>}[], handlePaymentAmountChange:(id:string, value:number)=>void, splitEvenly:boolean, setSplitEvenly:React.Dispatch<React.SetStateAction<boolean>>}) {
+export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChange, handleMarkBillPaid, splitEvenly, setSplitEvenly}: { bill: Bill, tenantSplits:{tenant: Partial<Tenant>; payment: Partial<Payment>}[], handlePaymentAmountChange:(id:string, value:number)=>void, handleMarkBillPaid:(id:string, checked:boolean)=>void, splitEvenly:boolean, setSplitEvenly:React.Dispatch<React.SetStateAction<boolean>>}) {
    
    return (
       <div className="mt-4 border-t pt-4">
@@ -50,6 +50,21 @@ export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChan
                         min="0"
                         step="0.01"
                      />
+                  </div>
+
+                  <div className="relative flex-1 ml-5">
+                     <div className="flex items-center">
+                        <input
+                           type="checkbox"
+                           id="paymentDone"
+                           checked={split.payment.amount_paid && split.payment.amount_paid > 0 ? true : false}
+                           onChange={(e) =>handleMarkBillPaid(split.tenant.id ? split.tenant.id : "", e.target.checked)}
+                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="paymentDone" className="ml-2 text-sm text-gray-700">
+                           Payment done
+                        </label>
+                     </div>
                   </div>
                </div>
             ))}

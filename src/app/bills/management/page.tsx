@@ -57,6 +57,18 @@ const BillsManagement = () => {
       setSplitEvenly(false);
    };
 
+   const handleMarkBillPaid = (id:string, checked:boolean)=>{
+      const newSplit = splitTenants.map((split, i) =>{
+         if(splitTenants[i].tenant.id === id){
+            splitTenants[i].payment.amount_paid = checked ? splitTenants[i].payment.amount_payment : 0
+            
+            console.log(split)
+         }
+         return split;
+      });
+      setSplitTenants(newSplit)
+   }
+
    // Calculate totals
    const totalAmount = filteredBills.reduce((sum, bill) => sum + bill.amount, 0);
    const unpaidAmount = bills.filter(b => b.status === "Pending").reduce((sum, bill) => sum + bill.amount, 0);
@@ -523,6 +535,7 @@ const BillsManagement = () => {
                                  bill={currentBill}
                                  tenantSplits={splitTenants}
                                  handlePaymentAmountChange={handlePaymentAmountChange}
+                                 handleMarkBillPaid={handleMarkBillPaid}
                                  splitEvenly={splitEvenly}
                                  setSplitEvenly={setSplitEvenly}
                                  />

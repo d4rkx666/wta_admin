@@ -27,11 +27,9 @@ const TenantManagement = () => {
    const [currentRooms, setCurrentRooms] = useState<Room[]>([]);
    const [currentRoom, setCurrentRoom] = useState<Partial<Room>>({});
    const [depositPayment, setDepositPayment] = useState<Partial<Payment>>({});
-   const [firstRentPayment, setFirstRentPayment] = useState<Partial<Payment>>({});
+   const [pastRents, setPastRents] = useState<Partial<Payment>[]>([]);
 
    const [hasCouple, setHasCouple] = useState(false);
-   const [tenantPaidFirstMonth, setTenantPaidFirstMonth] = useState(false);
-   const [tenantPaidOtherAmount, setTenantPaidOtherAmount] = useState(false);
 
    const [filterProperty, setFilterProperty] = useState<string>('all');
    const [contractFile, setContractFile] = useState<File | null>(null);
@@ -76,7 +74,7 @@ const TenantManagement = () => {
          const formData = new FormData();
          formData.append('tenant', JSON.stringify(tenantToInsert));
          formData.append('deposit', JSON.stringify(depositPayment));
-         formData.append('rent', JSON.stringify(firstRentPayment));
+         formData.append('pastRents', JSON.stringify(pastRents));
 
          if(contractFile){
             formData.append('contractFile', contractFile);
@@ -135,6 +133,7 @@ const TenantManagement = () => {
       const room = roomData.find(room => room.id === idRoom);
       if (room) {
          setCurrentRoom(room);
+         setDepositPayment({...depositPayment, amount_payment: parseFloat((room.price / 2).toFixed(2))})
       }
    }
 
@@ -144,14 +143,12 @@ const TenantManagement = () => {
       setCurrentRoom(RoomDefaultVal);
       setCurrentRooms([]);
       setDepositPayment({});
-      setFirstRentPayment({});
       setHasCouple(false);
-      setTenantPaidFirstMonth(false);
-      setTenantPaidOtherAmount(false);
       setContractFile(null);
       setIdFile(null);
       setIdPreview(null);
       setContractPreview(null)
+      setPastRents([])
    }
 
    const handleOnClickEdit = async (room: Room | undefined, deposit: Payment | undefined, tenant: Tenant) =>{
@@ -181,6 +178,43 @@ const TenantManagement = () => {
       setShowCreateModal(true);
    }
 
+   const handlePreviousRents = (lease_start:Date)=>{
+      const rents:Partial<Payment>[] = []; // rents
+      let currentYear = new Date(lease_start).getFullYear(); 
+      let currentMonth = new Date(lease_start).getUTCMonth();  // skips current month
+
+      const endYear = new Date().getFullYear()
+      const endMonth = new Date().getUTCMonth();
+
+      while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+
+         const newRent:Partial<Payment> = {
+            amount_paid: currentRoom.price,
+            dueDate: new Date(currentYear, currentMonth, 1),
+         }
+         rents.push(newRent)
+
+         // Move to the next year
+         if (currentMonth === 11) {
+            currentMonth = 0;
+            currentYear++;
+         } else {
+            currentMonth++;
+         }
+      }
+
+      setPastRents(rents)
+   }
+
+   const handleEditPastRentAmount = (value:number, index:number)=>{
+      const updatedPastRents = [...pastRents];
+      updatedPastRents[index] = {
+         ...updatedPastRents[index],
+         amount_paid: value,
+      };
+      setPastRents(updatedPastRents);
+   }
+
    // Filter tenants
    const filteredTenants = tenants.filter(tenant => {
       const filteredRooms = roomData.filter(r => r.id_property == filterProperty).find(r => r.id == tenant.room_id);
@@ -196,15 +230,6 @@ const TenantManagement = () => {
       };
    }, [contractPreview, idPreview]);
 
-   useEffect(() => {
-      let amount_payment = 0;
-      if (tenantPaidFirstMonth) {
-         if (!tenantPaidOtherAmount) {
-            amount_payment = currentRoom?.price || 0;
-         }
-      }
-      setFirstRentPayment({ ...firstRentPayment, amount_paid: amount_payment })
-   }, [tenantPaidFirstMonth, tenantPaidOtherAmount, currentRoom.price])
 
    if (loadingProperties || loadingTenants || loadingPayments) {
       return <Loader />;
@@ -333,7 +358,7 @@ const TenantManagement = () => {
                                  <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
                                        <CurrencyDollarIcon className="h-4 w-4 text-gray-500 mr-1" />
-                                       <span>{deposit?.amount_payment.toFixed(2)}</span>
+                                       <span>{deposit?.amount_payment}</span>
                                        {deposit?.amount_payment ? (
                                           <span className="ml-2 px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Paid</span>
                                        ) : (
@@ -344,14 +369,16 @@ const TenantManagement = () => {
                                  <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
                                        <CurrencyDollarIcon className="h-4 w-4 text-gray-500 mr-1" />
-                                       <span>{currentRent?.amount_payment.toFixed(2)}</span>
+                                       <span>{currentRent?.amount_payment}</span>
                                        {currentRent?.status === "Paid" ? (
                                           <span className="ml-2 px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Paid</span>
-                                       ) : (
+                                       ) : currentRent?.status === "Marked" ? (
+                                          <span className="ml-2 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">Marked</span>
+                                       ):(
                                           <span className="ml-2 px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Pending</span>
                                        )}
                                     </div>
-                                    <span className="ml-2 text-xs">Room ${room?.price.toFixed(2) || 0}</span>
+                                    <span className="ml-2 text-xs">Room ${room?.price || 0}</span>
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button
@@ -589,7 +616,10 @@ const TenantManagement = () => {
                                           required
                                           disabled={currentTenant.id ? true : false}
                                           value={new Date(currentTenant.lease_start).toISOString().split('T')[0] || ''}
-                                          onChange={(e) => setCurrentTenant({ ...currentTenant, lease_start: new Date(e.target.value) })}
+                                          onChange={(e) => {
+                                             setCurrentTenant({ ...currentTenant, lease_start: new Date(e.target.value) })
+                                             handlePreviousRents(new Date(e.target.value));
+                                          }}
                                           className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border disabled:bg-gray-200"
                                        />
                                     </div>
@@ -640,59 +670,18 @@ const TenantManagement = () => {
                                     </div>
                                  </div>
                               </div>
-                                          
-                              {!currentTenant.id &&
 
-                                 <div>
-                                    <div className="flex items-start">
-                                       <div className="flex items-center h-5 mt-1">
-                                          <input
-                                             id="rentPaidForMonth"
-                                             name="rentPaidForMonth"
-                                             type="checkbox"
-                                             checked={tenantPaidFirstMonth}
-                                             disabled={currentTenant.id ? true : false}
-                                             onChange={(e) => setTenantPaidFirstMonth(e.target.checked)}
-                                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-gray-200"
-                                          />
-                                       </div>
-                                       <div className="ml-3 text-sm">
-                                          <label htmlFor="rentPaidForMonth" className="font-medium text-gray-700">
-                                             Tenant paid current month
-                                          </label>
-                                       </div>
-                                    </div>
-                                 </div>
+                              {currentRoom.price !== 0 && 
+                                 <p className='text-xs font-bold text-green-700'>Room price: ${currentRoom.price}</p>
                               }
 
-                              {(tenantPaidFirstMonth && !currentTenant.id) && (
-                                 <div>
-                                    <div className="flex items-center mb-2">
-                                       <div className="flex items-center h-5">
-                                          <input
-                                             id="fixedAmount"
-                                             name="fixedAmount"
-                                             type="checkbox"
-                                             checked={!tenantPaidOtherAmount}
-                                             disabled={currentTenant.id ? true : false}
-                                             onChange={(e) => {
-                                                setTenantPaidOtherAmount(!e.target.checked);
-                                                setFirstRentPayment({ ...firstRentPayment, amount_paid: tenantPaidOtherAmount ? currentRoom.price : firstRentPayment?.amount_payment })
-                                             }}
-                                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:bg-gray-200"
-                                          />
-                                       </div>
-                                       <div className="ml-3 text-sm">
-                                          <label htmlFor="fixedAmount" className="font-medium text-gray-700">
-                                             Tenant paid ${currentRoom.price} (Room Price)
-                                          </label>
-                                       </div>
-                                    </div>
-
-                                    {tenantPaidOtherAmount && (
+                              {(!currentTenant.id && pastRents) && pastRents.map((rent,i) => {
+                                 const month = new Date(rent.dueDate as Date).toLocaleDateString("en-US",{month:"long"});
+                                 return (
+                                    <div key={i}>
                                        <div>
-                                          <label htmlFor="tenantPaidAmount" className="block text-sm font-medium text-gray-700 mb-1">
-                                             Amount Paid
+                                          <label htmlFor="depositAmount" className="block text-sm font-medium text-gray-700 mb-1">
+                                             Payment of {month}
                                           </label>
                                           <div className="relative rounded-md shadow-sm">
                                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -700,23 +689,18 @@ const TenantManagement = () => {
                                              </div>
                                              <input
                                                 type="number"
-                                                id="tenantPaidAmount"
-                                                name="tenantPaidAmount"
+                                                name="pastRent"
                                                 min="0"
-                                                step="0.01"
-                                                value={firstRentPayment?.amount_paid || ''}
-                                                disabled={currentTenant.id ? true : false}
-                                                onChange={(e) => setFirstRentPayment({
-                                                   ...firstRentPayment, amount_paid: parseFloat(e.target.value) || 0
-                                                })}
+                                                value={rent?.amount_paid || ''}
+                                                onChange={(e) => handleEditPastRentAmount(Number(e.target.value), i)}
                                                 className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border disabled:bg-gray-200"
-                                                placeholder="Enter amount paid"
+                                                placeholder="0.00"
                                              />
                                           </div>
                                        </div>
-                                    )}
-                                 </div>
-                              )}
+                                    </div>
+                                 )
+                              })}
 
                               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                                  <div>

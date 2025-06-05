@@ -29,6 +29,7 @@ export async function POST(req: Request) {
       // Inserting individually because we want to ONLY UPDATE, not insert in case payment.id is changed to another uniexistent one
       await firestoreService.updateDocument("payments",payment.id,"paymentVerifiedDate", new Date(Date.now()));
       await firestoreService.updateDocument("payments",payment.id,"status", "Paid");
+      await firestoreService.updateDocument("payments",payment.id,"is_current", false);
       return NextResponse.json({ success: true });
     }
 

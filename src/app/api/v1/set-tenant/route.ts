@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
   const tenant = JSON.parse(formData.getAll('tenant')[0] as string) as Tenant;
   const deposit = JSON.parse(formData.getAll('deposit')[0] as string) as Payment;
-  const rent = JSON.parse(formData.getAll('rent')[0] as string) as Payment;
+  const pastRents = JSON.parse(formData.getAll('pastRents')[0] as string) as Payment[];
   const contractFile = formData.getAll('contractFile')[0] as File
   const idFile = formData.getAll('idFile')[0] as File
 
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       tenant.id = userId; // asign same id to tenant
       userIdRollback = userId; // asigns to rollback in case the insertion fails 
 
-      // user
+      // 1- setup user
       const user: User = {
         id: userId,
         email: tenant.email,
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
         createdAt: new Date(Date.now()),
       }
 
-      // deposit
+      // 2- setup deposit
       deposit.id = uuidv4();
       deposit.tenant_id = tenant.id;
       deposit.payment_method = "E-Transfer";
@@ -68,23 +68,29 @@ export async function POST(req: Request) {
       deposit.is_current = true;
       deposit.createdAt = new Date(Date.now());
 
+      // 3- setup past rents
+      const pastRentsToInsert:Partial<Payment>[] = []
+      for(const rent of pastRents){
+        if(!rent.amount_paid) return;
+        rent.id = uuidv4();
+        rent.tenant_id = tenant.id;
+        rent.payment_method = "Other";
+        rent.type = "rent";
+        rent.amount_payment = rent.amount_paid;
+        rent.status = "Paid";
+        rent.is_current = false;
+        rent.dueDate = new Date(rent.dueDate as Date);
+        rent.paidDate = new Date(rent.dueDate as Date);
+        rent.createdAt = new Date(Date.now());
 
-      // Get room to get price:
+        pastRentsToInsert.push(rent)
+      }
+
+      // 4- Get room to get price:
       const room:Room = await firestoreService.getDocument("rooms", tenant.room_id) as Room;
       if(!room){
         return NextResponse.json({ success: false, message:"Room not found"});
       }
-
-      // Current rent
-      rent.id = uuidv4();
-      rent.tenant_id = tenant.id;
-      rent.payment_method = "E-Transfer";
-      rent.amount_payment = room.price;
-      rent.type = "rent";
-      rent.status = "Pending";
-      rent.is_current = true;
-      rent.createdAt = new Date(Date.now());
-      rent.dueDate = new Date(new Date(new Date(Date.now()).getFullYear(), new Date(Date.now()).getMonth() + 1, 0)); // get the last day of this month
 
       if(deposit.amount_payment && deposit.amount_payment > 0){
         tenant.has_paid_deposit = true;
@@ -93,16 +99,10 @@ export async function POST(req: Request) {
         deposit.paidDate = new Date(Date.now());
       }
       
-      if(rent.amount_paid && rent.amount_paid > 0){
-        rent.status = "Paid"
-        rent.amount_paid = rent.amount_paid;
-        rent.paidDate = new Date(Date.now());
-      }
-      
-      // Create future rents depending on the month
+      // 5- Create future rents depending on the month
       const rents:Partial<Payment>[] = []; // rents
-      let currentYear = new Date(tenant.lease_start).getFullYear(); 
-      let currentMonth = new Date(tenant.lease_start).getUTCMonth() + 1;  // skips current month
+      let currentYear = new Date().getFullYear(); 
+      let currentMonth = new Date().getUTCMonth() + 1;  // skips current month
 
       const endYear = new Date(tenant.lease_end).getFullYear()
       const endMonth = new Date(tenant.lease_end).getUTCMonth();
@@ -157,8 +157,21 @@ export async function POST(req: Request) {
         {collection: "tenants", docId: tenant.id, data: tenant},
         {collection: "rooms", docId: tenant.room_id, data: roomToUpdate},
         {collection: "payments", docId: deposit.id, data: deposit},
-        {collection: "payments", docId: rent.id, data: rent},
       ]
+
+      
+      // insert all past rents in the transaction
+      for(const rent of pastRentsToInsert){
+        if(!rent.id) return;
+
+        const r:MultipleDoc = {
+          collection:"payments",
+          docId: rent.id,
+          data: rent,
+        }
+
+        dataToInsert.push(r);
+      }
 
       // insert all rents in the transaction
       for(const rent of rents){
