@@ -6,7 +6,7 @@ import { Tenant } from '@/types/tenant';
 import { Timestamp } from 'firebase/firestore';
 import { NextResponse } from 'next/server';
 
-export async function POST() {
+export async function GET() {
 
   try {
     console.log("running daily tenants lease end & current payments check")
