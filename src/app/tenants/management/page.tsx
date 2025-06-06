@@ -73,10 +73,18 @@ const TenantManagement = () => {
          let rentsError = false;
          if(pastRents.length > 0){
             for(const rent of pastRents){
-               
+               if(!rent.amount_paid){
+                  rentsError = true;
+                  break;
+               }
             }
          }else{
             rentsError = true
+         }
+
+         if(rentsError){
+            showNotification('error', 'The amount of rents cannnot be empty!');
+            return;
          }
 
          // Prepare FormData
