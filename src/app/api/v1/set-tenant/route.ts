@@ -101,10 +101,10 @@ export async function POST(req: Request) {
       
       // 5- Create future rents depending on the month
       const rents:Partial<Payment>[] = []; // rents
-      let currentYear = new Date().getFullYear(); 
+      let currentYear = new Date().getUTCFullYear()
       let currentMonth = new Date().getUTCMonth() + 1;  // skips current month
 
-      const endYear = new Date(tenant.lease_end).getFullYear()
+      const endYear = new Date(tenant.lease_end).getUTCFullYear()
       const endMonth = new Date(tenant.lease_end).getUTCMonth();
 
       let current = true;

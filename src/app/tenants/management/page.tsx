@@ -70,6 +70,15 @@ const TenantManagement = () => {
             tenantToInsert.couple_name = "";
          }
 
+         let rentsError = false;
+         if(pastRents.length > 0){
+            for(const rent of pastRents){
+               
+            }
+         }else{
+            rentsError = true
+         }
+
          // Prepare FormData
          const formData = new FormData();
          formData.append('tenant', JSON.stringify(tenantToInsert));
@@ -180,10 +189,10 @@ const TenantManagement = () => {
 
    const handlePreviousRents = (lease_start:Date)=>{
       const rents:Partial<Payment>[] = []; // rents
-      let currentYear = new Date(lease_start).getFullYear(); 
+      let currentYear = new Date(lease_start).getUTCFullYear();
       let currentMonth = new Date(lease_start).getUTCMonth();  // skips current month
 
-      const endYear = new Date().getFullYear()
+      const endYear = new Date().getUTCFullYear();
       const endMonth = new Date().getUTCMonth();
 
       while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
@@ -616,6 +625,8 @@ const TenantManagement = () => {
                                           required
                                           disabled={currentTenant.id ? true : false}
                                           value={new Date(currentTenant.lease_start).toISOString().split('T')[0] || ''}
+                                          onKeyDown={(e)=>e.preventDefault()}
+                                          onClick={(e)=> (e.target as HTMLInputElement).showPicker()}
                                           onChange={(e) => {
                                              setCurrentTenant({ ...currentTenant, lease_start: new Date(e.target.value) })
                                              handlePreviousRents(new Date(e.target.value));
@@ -640,6 +651,8 @@ const TenantManagement = () => {
                                           required
                                           disabled={currentTenant.id ? true : false}
                                           value={new Date(currentTenant.lease_end).toISOString().split('T')[0] || ''}
+                                          onKeyDown={(e)=>e.preventDefault()}
+                                          onClick={(e)=> (e.target as HTMLInputElement).showPicker()}
                                           onChange={(e) => setCurrentTenant({ ...currentTenant, lease_end: new Date(e.target.value) })}
                                           className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border disabled:bg-gray-200"
                                        />
@@ -752,7 +765,7 @@ const TenantManagement = () => {
 
                                  <div>
                                     <label htmlFor="idFile" className="block text-sm font-medium text-gray-700 mb-1">
-                                       ID/Passport (Image/PDF)
+                                       ID/Passport (Image only: JPEG / PNG)
                                     </label>
                                     <div className="flex items-center">
                                        <label className="flex flex-col items-center justify-center w-full p-2 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">

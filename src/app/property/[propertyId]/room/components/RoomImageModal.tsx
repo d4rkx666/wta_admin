@@ -50,7 +50,7 @@ export default function RoomImageModal({ room, onClose, onSave }: {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.webp']
+      'image/*': ['.jpeg', '.jpg', '.png']
     },
     maxFiles: 10,
     multiple: true
@@ -333,7 +333,7 @@ export default function RoomImageModal({ room, onClose, onSave }: {
                   <p className="text-lg font-medium text-gray-700">
                     {isDragActive ? 'Drop the images here' : 'Drag & drop images here, or click to select'}
                   </p>
-                  <p className="text-sm text-gray-500">Supports JPG, PNG, WEBP (max 10 images)</p>
+                  <p className="text-sm text-gray-500">Supports JPG, PNG (max 10 images)</p>
                 </div>
               </div>
 

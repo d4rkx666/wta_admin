@@ -80,7 +80,8 @@ export default function RoomListing() {
         showNotification('success', 'Room form submitted successfully!');
         setIsModalOpen(false)
       }else{
-        showNotification('error', 'Something went wrong... Please check all the form data and try again.');
+        console.log(data)
+        showNotification('error', 'Something went wrong... '+data.error);
       }
     } catch (error) {
       console.error('Upload failed:', error);

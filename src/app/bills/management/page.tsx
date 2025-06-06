@@ -262,12 +262,18 @@ const BillsManagement = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                      {filteredBills.length > 0 ? (
                         filteredBills.map((bill) => {
+                           const t = paymentTenantBills.map(payment=>{
+                              if(payment.bill_id === bill.id){
+                                 return tenants.find(tenant => tenant.id === payment.tenant_id)
+                              }
+                           })
+
                            const p = properties.find(p => p.id === bill.propertyId);
-                           const t = tenants.filter(tenant => {
+                           /*const t = tenants.filter(tenant => {
                               const filteredRooms = rooms.find(r => r.id_property == p?.id && r.id === tenant.room_id);
                               if (!filteredRooms) return false;
                               return true;
-                           });
+                           });*/
 
                            // get sum of payments done
                            const payments = paymentTenantBills.reduce((amount, p) => amount + ((p.bill_id === bill.id && p.status==="Paid") ?  p.amount_paid : 0), 0);
@@ -314,7 +320,7 @@ const BillsManagement = () => {
                                        {t.length > 0 ? t.map((tenant, i) =>{
                                           return (
                                              <span key={i} className="text-xs">
-                                                {tenant.name}
+                                                {tenant && tenant.name}
                                              </span>
                                           )
                                        }) : (
@@ -435,6 +441,8 @@ const BillsManagement = () => {
                                        name="issuedDate"
                                        required
                                        defaultValue={currentBill.issuedDate.toString()}
+                                       onKeyDown={(e)=>e.preventDefault()}
+                                       onClick={(e)=> (e.target as HTMLInputElement).showPicker()}
                                        onChange={(e) => setCurrentBill({ ...currentBill, issuedDate: new Date(e.target.value) })}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-5 px-4 py-2 border peer"
                                        placeholder="123 Main St, City, State"
@@ -454,6 +462,8 @@ const BillsManagement = () => {
                                        name="dueDate"
                                        required
                                        defaultValue={currentBill.dueDate.toString()}
+                                       onKeyDown={(e)=>e.preventDefault()}
+                                       onClick={(e)=> (e.target as HTMLInputElement).showPicker()}
                                        onChange={(e) => setCurrentBill({ ...currentBill, dueDate: new Date(e.target.value) })}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-5 px-4 py-2 border peer"
                                        placeholder="123 Main St, City, State"

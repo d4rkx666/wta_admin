@@ -49,8 +49,12 @@ export async function POST(req: Request) {
           imgurFormData.append('image', file);
           const resp = await insert_img(imgurFormData)
           console.log("inserted",resp)
-          const i: { id: string, url: string } = { id: resp.data.deletehash, url: resp.data.link } // Only add id and url
-          array_images_to_insert.push(i)
+          if(resp.success){
+            const i: { id: string, url: string } = { id: resp.data.deletehash, url: resp.data.link } // Only add id and url
+            array_images_to_insert.push(i)
+          }else{
+            throw new Error("File format might not be supported. Try a different one.");
+          }
         }
 
 
@@ -80,8 +84,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.log(String(error))
     return NextResponse.json(
-      { error: 'Failed to update document' },
-      { status: 500 }
+      { succes:false, error: String(error) }
     );
   }
 }
