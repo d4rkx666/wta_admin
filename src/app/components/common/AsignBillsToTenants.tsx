@@ -2,8 +2,9 @@
 import { Bill } from "@/types/bill";
 import { Tenant } from "@/types/tenant";
 import { Payment } from "@/types/payment";
+import { Timestamp } from "firebase/firestore";
 
-export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChange, handleMarkBillPaid, splitEvenly, setSplitEvenly}: { bill: Bill, tenantSplits:{tenant: Partial<Tenant>; payment: Partial<Payment>}[], handlePaymentAmountChange:(id:string, value:number)=>void, handleMarkBillPaid:(id:string, checked:boolean)=>void, splitEvenly:boolean, setSplitEvenly:React.Dispatch<React.SetStateAction<boolean>>}) {
+export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChange, handleMarkBillPaid, splitEvenly, setSplitEvenly}: { bill: Partial<Bill>, tenantSplits:{tenant: Partial<Tenant>; payment: Partial<Payment>}[], handlePaymentAmountChange:(id:string, value:number)=>void, handleMarkBillPaid:(id:string, checked:boolean)=>void, splitEvenly:boolean, setSplitEvenly:React.Dispatch<React.SetStateAction<boolean>>}) {
    
    return (
       <div className="mt-4 border-t pt-4">
@@ -31,8 +32,8 @@ export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChan
 
                      <div className="text-sm text-gray-700">
                         <div className="flex flex-col text-xs">
-                           <span>From {split.tenant.lease_start && new Date(split.tenant.lease_start).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
-                           <span>To {split.tenant.lease_end && new Date(split.tenant.lease_end).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
+                           <span>From {split.tenant.lease_start && new Date((split.tenant.lease_start as Timestamp).toDate()).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
+                           <span>To {split.tenant.lease_end && new Date((split.tenant.lease_end as Timestamp).toDate()).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
                         </div>
                      </div>
                   </div>
@@ -74,9 +75,9 @@ export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChan
             <span className="text-sm font-medium text-gray-700">Total:</span>
             <span className="text-sm font-medium">
                ${tenantSplits.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0).toFixed(2)}
-               {Math.abs(tenantSplits.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0) - bill.amount) > 0.01 && (
+               {Math.abs(tenantSplits.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0) - (bill.amount && bill.amount || 0)) > 0.01 && (
                   <span className="ml-2 text-red-500">
-                     (Diff: ${(bill.amount - tenantSplits.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0)).toFixed(2)})
+                     (Diff: ${((bill.amount && bill.amount || 0) - tenantSplits.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0)).toFixed(2)})
                   </span>
                )}
             </span>

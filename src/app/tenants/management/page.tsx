@@ -5,7 +5,7 @@ import { useLiveProperties } from '@/hooks/useLiveProperties';
 import Loader from '@/app/components/common/Loader';
 import { XMarkIcon, DocumentTextIcon, PhotoIcon, UserIcon, EnvelopeIcon, PhoneIcon, HomeIcon, CurrencyDollarIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import { useNotification } from '@/app/context/NotificationContext';
-import { Tenant, TenantDefaultVal } from '@/types/tenant';
+import { Tenant } from '@/types/tenant';
 import { set_tenant } from '@/hooks/setTenant';
 import { useRoom } from '@/hooks/useRoom';
 import { Room, RoomDefaultVal } from '@/types/room';
@@ -16,6 +16,7 @@ import ModalConfirmation from '@/app/components/common/ModalConfirmation';
 import { del_tenant } from '@/hooks/delTenant';
 import { get_tenant_files } from '@/hooks/getTenantFiles';
 import Image from 'next/image';
+import { Timestamp } from 'firebase/firestore';
 
 const TenantManagement = () => {
    const { showNotification } = useNotification();
@@ -23,7 +24,7 @@ const TenantManagement = () => {
    const [showCreateModal, setShowCreateModal] = useState(false);
    const [isModalConfirmOpen, setIsModalConfirmOpen] = useState(false);
 
-   const [currentTenant, setCurrentTenant] = useState<Tenant>(TenantDefaultVal);
+   const [currentTenant, setCurrentTenant] = useState<Partial<Tenant>>({id: ""});
    const [currentRooms, setCurrentRooms] = useState<Room[]>([]);
    const [currentRoom, setCurrentRoom] = useState<Partial<Room>>({});
    const [depositPayment, setDepositPayment] = useState<Partial<Payment>>({});
@@ -65,7 +66,7 @@ const TenantManagement = () => {
       try {
          setIsLoading(true);
 
-         const tenantToInsert: Tenant = currentTenant;
+         const tenantToInsert: Partial<Tenant> = JSON.parse(JSON.stringify(currentTenant));
          if (!hasCouple) {
             tenantToInsert.couple_name = "";
          }
@@ -86,7 +87,7 @@ const TenantManagement = () => {
             showNotification('error', 'The amount of rents cannnot be empty!');
             return;
          }
-
+         console.log(tenantToInsert)
          // Prepare FormData
          const formData = new FormData();
          formData.append('tenant', JSON.stringify(tenantToInsert));
@@ -105,7 +106,7 @@ const TenantManagement = () => {
          const data = await response.json();
          if (data.success) {
             showNotification('success', 'Property form submitted successfully!');
-            setShowCreateModal(false);
+            //setShowCreateModal(false);
          } else {
             showNotification('error', 'Something went wrong... Please check all the form data and try again.');
          }
@@ -156,7 +157,7 @@ const TenantManagement = () => {
 
    const handleCloseModal = () => {
       setShowCreateModal(false);
-      setCurrentTenant(TenantDefaultVal);
+      setCurrentTenant({});
       setCurrentRoom(RoomDefaultVal);
       setCurrentRooms([]);
       setDepositPayment({});
@@ -279,7 +280,7 @@ const TenantManagement = () => {
                </div>
                <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500">
                   <h3 className="text-gray-500 text-sm font-medium">Active Leases</h3>
-                  <p className="text-2xl font-bold">{tenants.filter(t => new Date(t.lease_end) > new Date()).length}</p>
+                  <p className="text-2xl font-bold">{tenants.filter(t => new Date((t.lease_end as Timestamp).toDate()) > new Date()).length}</p>
                </div>
                <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-yellow-500">
                   <h3 className="text-gray-500 text-sm font-medium">Pending Payments</h3>
@@ -368,8 +369,8 @@ const TenantManagement = () => {
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-gray-900">
-                                       {new Date(tenant.lease_start).toLocaleDateString()} -{' '}
-                                       {new Date(tenant.lease_end).toLocaleDateString()}
+                                       {new Date((tenant.lease_start as Timestamp).toDate()).toLocaleDateString()} -{' '}
+                                       {new Date((tenant.lease_end as Timestamp).toDate()).toLocaleDateString()}
                                     </div>
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap">
@@ -632,11 +633,12 @@ const TenantManagement = () => {
                                           name="leaseStart"
                                           required
                                           disabled={currentTenant.id ? true : false}
-                                          value={new Date(currentTenant.lease_start).toISOString().split('T')[0] || ''}
+                                          defaultValue={currentTenant.lease_start instanceof Timestamp ? (currentTenant.lease_start as Timestamp).toDate().toISOString().split("T")[0] : ""}
                                           onKeyDown={(e)=>e.preventDefault()}
                                           onClick={(e)=> (e.target as HTMLInputElement).showPicker()}
                                           onChange={(e) => {
-                                             setCurrentTenant({ ...currentTenant, lease_start: new Date(e.target.value) })
+                                             const d = (e.target.value as string).split("-")
+                                             setCurrentTenant({ ...currentTenant, lease_start: new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2]))})
                                              handlePreviousRents(new Date(e.target.value));
                                           }}
                                           className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border disabled:bg-gray-200"
@@ -658,10 +660,14 @@ const TenantManagement = () => {
                                           name="leaseEnd"
                                           required
                                           disabled={currentTenant.id ? true : false}
-                                          value={new Date(currentTenant.lease_end).toISOString().split('T')[0] || ''}
+                                          defaultValue={currentTenant.lease_end instanceof Timestamp ? (currentTenant.lease_end as Timestamp).toDate().toISOString().split("T")[0] : ""}
                                           onKeyDown={(e)=>e.preventDefault()}
                                           onClick={(e)=> (e.target as HTMLInputElement).showPicker()}
-                                          onChange={(e) => setCurrentTenant({ ...currentTenant, lease_end: new Date(e.target.value) })}
+                                          
+                                          onChange={(e) => {
+                                             const d = (e.target.value as string).split("-")
+                                             setCurrentTenant({ ...currentTenant, lease_end: new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2]))});
+                                          }}
                                           className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border disabled:bg-gray-200"
                                        />
                                     </div>

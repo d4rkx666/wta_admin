@@ -48,6 +48,11 @@ export async function POST(req: Request) {
       tenant.id = userId; // asign same id to tenant
       userIdRollback = userId; // asigns to rollback in case the insertion fails 
 
+      // Verify dates
+      tenant.lease_start = new Date(tenant.lease_start as Date);
+      tenant.lease_end = new Date(tenant.lease_end as Date);
+      tenant.createdAt = new Date();
+
       // 1- setup user
       const user: User = {
         id: userId,
@@ -103,9 +108,10 @@ export async function POST(req: Request) {
       const rents:Partial<Payment>[] = []; // rents
       let currentYear = new Date().getUTCFullYear()
       let currentMonth = new Date().getUTCMonth() + 1;  // skips current month
+      console.log(currentMonth, new Date().getUTCDate(), "dates")
 
-      const endYear = new Date(tenant.lease_end).getUTCFullYear()
-      const endMonth = new Date(tenant.lease_end).getUTCMonth();
+      const endYear = new Date(tenant.lease_end as Date).getUTCFullYear()
+      const endMonth = new Date(tenant.lease_end as Date).getUTCMonth();
 
       let current = true;
       while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
@@ -185,6 +191,7 @@ export async function POST(req: Request) {
 
         dataToInsert.push(r);
       }
+      console.log(dataToInsert)
       
       await firestoreService.setMultipleDocuments(dataToInsert);
     }else{ // update tenant

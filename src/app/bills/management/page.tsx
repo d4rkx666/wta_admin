@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import { Bill, BillDefaultVal } from '@/types/bill';
+import { Bill } from '@/types/bill';
 import { useLiveProperties } from '@/hooks/useLiveProperties';
 import Loader from '@/app/components/common/Loader';
 import { CurrencyDollarIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -15,6 +15,7 @@ import AsignBills from '@/app/components/common/AsignBillsToTenants';
 import { Payment } from '@/types/payment';
 import { Tenant } from '@/types/tenant';
 import { useLivePayments } from '@/hooks/useLivePayments';
+import { Timestamp } from 'firebase/firestore';
 
 const BillsManagement = () => {
    const { showNotification } = useNotification();
@@ -23,7 +24,7 @@ const BillsManagement = () => {
    const [showCreateModal, setShowCreateModal] = useState(false);
    const [filterProperty, setFilterProperty] = useState<string>('all');
    const [isLoading, setIsLoading] = useState(false);
-   const [currentBill, setCurrentBill] = useState<Bill>(BillDefaultVal);
+   const [currentBill, setCurrentBill] = useState<Partial<Bill>>({id:""});
    const [splitEvenly, setSplitEvenly] = useState(true);
    const [splitTenants, setSplitTenants] = useState<{tenant: Partial<Tenant>; payment: Partial<Payment> }[]>([]);
 
@@ -44,29 +45,59 @@ const BillsManagement = () => {
 
       return true;
    });
-
+   
    const handlePaymentAmountChange = (id: string, value: number) => {
       const newAmount = Number(value.toFixed(2));
+      let amount_paid = 0
       const newSplit = splitTenants.map((split, i) =>{
          if(splitTenants[i].tenant.id === id){
             splitTenants[i].payment.amount_payment = newAmount
+         }
+
+         if(splitTenants[i].payment.amount_paid){
+            splitTenants[i].payment.amount_paid = newAmount
+            amount_paid += splitTenants[i].payment.amount_paid;
          }
          return split;
       });
       setSplitTenants(newSplit)
       setSplitEvenly(false);
+      if(currentBill?.amount){
+         setCurrentBill({...currentBill, balance: parseFloat((currentBill.amount - amount_paid).toFixed(2))})
+      }
    };
 
    const handleMarkBillPaid = (id:string, checked:boolean)=>{
       const newSplit = splitTenants.map((split, i) =>{
          if(splitTenants[i].tenant.id === id){
-            splitTenants[i].payment.amount_paid = checked ? splitTenants[i].payment.amount_payment : 0
-            
-            console.log(split)
+            splitTenants[i].payment.amount_paid = checked ? splitTenants[i].payment.amount_payment : 0;
+            let newBalance = currentBill?.balance || 0;
+            if(checked && splitTenants[i].payment.amount_payment){
+               newBalance -= splitTenants[i].payment.amount_payment;
+            }else if(!checked && splitTenants[i].payment.amount_payment){
+               newBalance += splitTenants[i].payment.amount_payment;
+            }
+            setCurrentBill({...currentBill, balance: parseFloat(newBalance.toFixed(2))})
          }
          return split;
       });
       setSplitTenants(newSplit)
+   }
+
+   const handleEditBill = (bill:Bill)=>{
+      // get payments and tenants
+      const newSplits = paymentTenantBills.filter(payment => payment.bill_id === bill.id).map(payment => {
+         const tenant:Partial<Tenant> = tenants.find(tenant => tenant.id === payment.tenant_id) || {};
+         
+         return{
+            tenant,
+            payment,
+         }
+      });
+      setSplitTenants(newSplits);
+
+      setCurrentBill(bill)
+      setShowCreateModal(true)
    }
 
    // Calculate totals
@@ -78,12 +109,22 @@ const BillsManagement = () => {
       try {
          setIsLoading(true);
 
-         const response = await set_bill(currentBill, splitTenants);
+         const billToInsert = JSON.parse(JSON.stringify(currentBill));
+         
+         // Check dates
+         if(currentBill.issuedDate instanceof Timestamp){
+            billToInsert.issuedDate = currentBill.issuedDate.toDate()
+         }
+         if(currentBill.dueDate instanceof Timestamp){
+            billToInsert.dueDate = currentBill.dueDate.toDate()
+         }
+
+         const response = await set_bill(billToInsert, splitTenants);
 
          const data = await response.json();
          if (data.success) {
             showNotification('success', 'Property form submitted successfully!');
-            setShowCreateModal(false);
+            //setShowCreateModal(false);
          } else {
             showNotification('error', 'Something went wrong... Please check all the form data and try again.');
          }
@@ -93,18 +134,21 @@ const BillsManagement = () => {
          setIsLoading(false);
       }
    };
-
+   
    useEffect(() => {
+      if(currentBill.id) return;
       // Filter properties, then check each room to find all the tenants.
       const propertyTenants = tenants.filter(tenant => {
          const filteredRooms = rooms.filter(r => r.id_property == currentBill.propertyId).find(r => r.id == tenant.room_id);
-         const tenantRentedOnBillDate = new Date(tenant.lease_start) <= new Date(currentBill.dueDate) && new Date(tenant.lease_end) >= new Date(currentBill.issuedDate);
+         const dueDate = currentBill.dueDate instanceof Timestamp ? currentBill.dueDate.toDate() : currentBill.dueDate
+         const issuedDate = currentBill.issuedDate instanceof Timestamp ? currentBill.issuedDate.toDate() : currentBill.issuedDate
+         const tenantRentedOnBillDate = (dueDate && issuedDate) && new Date((tenant.lease_start as Timestamp).toDate()) <= dueDate && new Date((tenant.lease_end as Timestamp).toDate()) >= issuedDate;
          if (!filteredRooms || !tenantRentedOnBillDate) return false;
          return true;
       });
-
+      
       if (propertyTenants.length > 0) {
-         const splitAmount = Number((currentBill.amount / propertyTenants.length).toFixed(2));
+         const splitAmount = Number(((currentBill?.amount || 0) / propertyTenants.length).toFixed(2));
          const newSplits = propertyTenants.map(tenant => {
 
             const t:Partial<Tenant> = {
@@ -124,13 +168,14 @@ const BillsManagement = () => {
             }
          });
          setSplitTenants(newSplits);
+         setCurrentBill({...currentBill, balance: currentBill.amount})
       } else {
          setSplitTenants([]);
       }
    }, [currentBill.propertyId, currentBill.amount, currentBill.issuedDate, currentBill.dueDate]);
 
    useEffect(()=>{
-      if (splitEvenly) { // Split Evenly only when true
+      if (splitEvenly && currentBill.amount) { // Split Evenly only when true
          const splitAmount = Number((currentBill.amount / splitTenants.length).toFixed(2));
          const newSplits = splitTenants.map(split => ({
             tenant: split.tenant,
@@ -141,11 +186,11 @@ const BillsManagement = () => {
          setSplitTenants(newSplits);
       }
    },[splitEvenly])
-   
 
    const handleOnCloseClick = () => {
       setShowCreateModal(false)
-      setCurrentBill(BillDefaultVal);
+      setCurrentBill({});
+      setSplitTenants([]);
    }
 
    if (loadingProperties || loadingBills || loadingTenants || loadingRooms || loadingPaymentTenantBills) {
@@ -269,11 +314,6 @@ const BillsManagement = () => {
                            })
 
                            const p = properties.find(p => p.id === bill.propertyId);
-                           /*const t = tenants.filter(tenant => {
-                              const filteredRooms = rooms.find(r => r.id_property == p?.id && r.id === tenant.room_id);
-                              if (!filteredRooms) return false;
-                              return true;
-                           });*/
 
                            // get sum of payments done
                            const payments = paymentTenantBills.reduce((amount, p) => amount + ((p.bill_id === bill.id && p.status==="Paid") ?  p.amount_paid : 0), 0);
@@ -298,12 +338,12 @@ const BillsManagement = () => {
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-gray-900">
-                                       {new Date(bill.issuedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                       {new Date((bill.issuedDate as Timestamp).toDate()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                     </div>
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-gray-900">
-                                       {new Date(bill.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                       {new Date((bill.dueDate as Timestamp).toDate()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                     </div>
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap">
@@ -330,12 +370,13 @@ const BillsManagement = () => {
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div className="flex justify-end space-x-2">
-                                       {is_amount_paid && bill.status !== "Pending" && (
+                                       {bill.status === "Pending" && (
                                           <button
                                           type='button'
-                                          className="text-green-600 hover:text-green-900"
+                                          className="text-blue-600 hover:text-green-900"
+                                          onClick={()=>handleEditBill(bill)}
                                           >
-                                             Mark Paid
+                                             Edit & Assign
                                           </button>
                                        )}
                                     </div>
@@ -440,10 +481,13 @@ const BillsManagement = () => {
                                        id="issuedDate"
                                        name="issuedDate"
                                        required
-                                       defaultValue={currentBill.issuedDate.toString()}
+                                       defaultValue={currentBill.issuedDate instanceof Timestamp ? (currentBill.issuedDate as Timestamp).toDate().toISOString().split("T")[0] : ""}
                                        onKeyDown={(e)=>e.preventDefault()}
                                        onClick={(e)=> (e.target as HTMLInputElement).showPicker()}
-                                       onChange={(e) => setCurrentBill({ ...currentBill, issuedDate: new Date(e.target.value) })}
+                                       onChange={(e) => {
+                                          const d = (e.target.value as string).split("-")
+                                          setCurrentBill({ ...currentBill, issuedDate: new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2]))})
+                                       }}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-5 px-4 py-2 border peer"
                                        placeholder="123 Main St, City, State"
                                     />
@@ -461,10 +505,14 @@ const BillsManagement = () => {
                                        id="dueDate"
                                        name="dueDate"
                                        required
-                                       defaultValue={currentBill.dueDate.toString()}
+                                       min={currentBill.issuedDate && (currentBill.issuedDate instanceof Timestamp ? (currentBill.issuedDate as Timestamp).toDate().toISOString().split("T")[0] : new Date(currentBill.issuedDate as Date).toISOString().split("T")[0]) || ""}
+                                       defaultValue={currentBill.dueDate instanceof Timestamp ? (currentBill.dueDate as Timestamp).toDate().toISOString().split("T")[0] : ""}
                                        onKeyDown={(e)=>e.preventDefault()}
                                        onClick={(e)=> (e.target as HTMLInputElement).showPicker()}
-                                       onChange={(e) => setCurrentBill({ ...currentBill, dueDate: new Date(e.target.value) })}
+                                       onChange={(e) => {
+                                          const d = (e.target.value as string).split("-")
+                                          setCurrentBill({ ...currentBill, dueDate: new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2]))})
+                                       }}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-5 px-4 py-2 border peer"
                                        placeholder="123 Main St, City, State"
                                     />
@@ -515,7 +563,7 @@ const BillsManagement = () => {
                                           id="balance"
                                           name="balance"
                                           disabled
-                                          value={currentBill.balance}
+                                          value={currentBill.balance || 0}
                                           className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-gray-200 pl-10 px-4 py-2 border"
                                           placeholder="123 Main St, City, State"
                                        />

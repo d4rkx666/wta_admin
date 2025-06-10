@@ -78,7 +78,7 @@ async function updateRoomsTaken() {
   const roomsToUpdate: Room[] = []
 
   tenants.map(tenant => {
-    if (new Date() >= new Date(tenant.lease_end)) { //check if lease has ended
+    if (new Date() >= new Date((tenant.lease_end as Timestamp).toDate())) { //check if lease has ended
       const roomUpdate = rooms.find(room => tenant.room_id === room.id); // find room
       if (roomUpdate) {
         roomsToUpdate.push(roomUpdate); // push room to update

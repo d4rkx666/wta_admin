@@ -17,53 +17,88 @@ export async function POST(req: Request) {
   }
 
   try {
-    if (bill.id == "") {
+    if (!bill.id) {
       bill.id = uuidv4();
       bill.createdAt = new Date(Date.now());
-    }
 
-    let newBillBalance = bill.balance;
-    const payments:Payment[] = tenantsAndPayments.map(split=>{
-      const hasPaid = split.payment.amount_payment === split.payment.amount_paid;
+      //format dates to bill
+      bill.issuedDate = new Date(bill.issuedDate.toString());
+      bill.dueDate = new Date(bill.dueDate.toString());
+      bill.status = bill.balance <= 0.01 ? "Paid" : "Pending"
 
-      if(hasPaid){
-        // new bill balance
-        newBillBalance -= split.payment.amount_paid
-        bill.balance = newBillBalance;
-        if(newBillBalance <= 0.01){
-          bill.status = "Paid"
+      const payments:Payment[] = tenantsAndPayments.map(split=>{
+        const hasPaid = split.payment.amount_payment === split.payment.amount_paid;
+
+        if(hasPaid){
+          // set paid date
+          split.payment.paidDate = new Date();
         }
 
-        // set paid date
-        split.payment.paidDate = new Date();
+        split.payment.id = uuidv4();
+        split.payment.bill_id = bill.id;
+        split.payment.is_current= hasPaid ? false : true;
+        split.payment.status = hasPaid ? "Paid" : "Pending";
+        split.payment.tenant_id = split.tenant.id
+        split.payment.type="bills";
+        split.payment.dueDate = new Date(new Date(new Date().setMonth(new Date().getMonth() + 1))); // one month after
+        split.payment.createdAt = new Date(Date.now());
+        return split.payment;
+      })
+
+      const dataToInsert: MultipleDoc[] = [
+        {collection: "bills", docId: bill.id, data: bill}
+      ]
+
+      // add payments to insertion
+      for(const p of payments){
+        const toInsert = {
+          collection: "payments", docId: p.id, data: p
+        }
+        dataToInsert.push(toInsert);
+      }
+      await firestoreService.setMultipleDocuments(dataToInsert);
+      
+    }else{
+      const billToUpdate: Partial<Bill> = {
+        id: bill.id,
+        propertyId: bill.propertyId,
+        type: bill.type, 
+        issuedDate: new Date(bill.issuedDate as Date),
+        dueDate: new Date(bill.dueDate as Date),
+        amount: bill.amount,
+        balance: bill.balance,
+        notes: bill.notes,
+        status: bill.balance <= 0.01 ? "Paid" : "Pending"
+      }
+      await firestoreService.setDocument("bills", bill.id, billToUpdate);
+
+      const dataToInsert: MultipleDoc[] = []
+      for(const typ of tenantsAndPayments ){
+        const paymentToUpdate: Partial<Payment> = {
+          id: typ.payment.id,
+          amount_payment: typ.payment.amount_payment
+        }
+
+        if(typ.payment.status === "Pending" && typ.payment.amount_paid){
+          paymentToUpdate.amount_paid = typ.payment.amount_paid;
+          paymentToUpdate.status = "Paid";
+          paymentToUpdate.paidDate = new Date();
+          paymentToUpdate.payment_method = "Other"
+        }
+
+        dataToInsert.push({
+          collection: "payments",
+          docId: typ.payment.id,
+          data: paymentToUpdate
+        })
       }
 
-      split.payment.id = uuidv4();
-      split.payment.bill_id = bill.id;
-      split.payment.is_current= hasPaid ? false : true;
-      split.payment.status = hasPaid ? "Paid" : "Pending";
-      split.payment.tenant_id = split.tenant.id
-      split.payment.type="bills";
-      split.payment.dueDate = new Date(new Date(new Date().setMonth(new Date().getMonth() + 1))); // one month after
-      split.payment.createdAt = new Date(Date.now());
-      return split.payment;
-    })
-
-    const dataToInsert: MultipleDoc[] = [
-      {collection: "bills", docId: bill.id, data: bill}
-    ]
-
-    // add payments to insertion
-    for(const p of payments){
-      const toInsert = {
-        collection: "payments", docId: p.id, data: p
-      }
-      dataToInsert.push(toInsert);
+      // update multiple documents
+      await firestoreService.setMultipleDocuments(dataToInsert);
     }
-    
-    await firestoreService.setMultipleDocuments(dataToInsert);
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error(error)
     return NextResponse.json(
       { error: String(error) },
       { status: 500 }
