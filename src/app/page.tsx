@@ -44,7 +44,7 @@ export default function Dashboard() {
   }
 
   const activeTenants:number = useMemo(()=>{
-    return tenants.filter(tenant=>new Date(tenant.lease_start) <= new Date(Date.now()) && new Date(tenant.lease_end) > new Date(Date.now())).length
+    return tenants.filter(tenant=>new Date((tenant.lease_start as Timestamp).toDate()) <= new Date(Date.now()) && new Date((tenant.lease_end as Timestamp).toDate()) > new Date(Date.now())).length
   },[tenants])
 
   const occupancyRate:string = useMemo(()=>{
