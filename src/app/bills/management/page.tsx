@@ -27,13 +27,18 @@ const BillsManagement = () => {
    const [showCreateModal, setShowCreateModal] = useState(false);
    const [filterProperty, setFilterProperty] = useState<string>('all');
    const [isLoading, setIsLoading] = useState(false);
-   const [currentBill, setCurrentBill] = useState<Partial<Bill>>({id:""});
-   const [paymentToUnnasign, setPaymentToUnnasign] = useState<Partial<Payment>>({id:""});
+   const [currentBill, setCurrentBill] = useState<Partial<Bill>>({ id: "" });
+   const [paymentToUnnasign, setPaymentToUnnasign] = useState<Partial<Payment>>({ id: "" });
    const [splitEvenly, setSplitEvenly] = useState(true);
-   const [splitTenants, setSplitTenants] = useState<{tenant: Partial<Tenant>; payment: Partial<Payment> }[]>([]);
-   const [splitTenantsSaved, setSplitTenantsSaved] = useState<{tenant: Partial<Tenant>; payment: Partial<Payment> }[]>([]);
+   const [splitTenants, setSplitTenants] = useState<{ tenant: Partial<Tenant>; payment: Partial<Payment> }[]>([]);
+   const [splitTenantsSaved, setSplitTenantsSaved] = useState<{ tenant: Partial<Tenant>; payment: Partial<Payment> }[]>([]);
    const [showModalConfirmationDeleteBill, setShowModalConfirmationDeleteBill] = useState(false);
    const [showModalConfirmationUnnasign, setShowModalConfirmationUnnasign] = useState(false);
+
+   // Filter
+   const [filterStartDate, setFilterStartDate] = useState<string>('');
+   const [filterEndDate, setFilterEndDate] = useState<string>('');
+   const [filterBillType, setFilterBillType] = useState<string>('all');
 
    const { data: properties, loading: loadingProperties } = useLiveProperties(); // Get Properties
    const { data: bills, loading: loadingBills } = useLiveBills(); // Get Bills
@@ -50,32 +55,55 @@ const BillsManagement = () => {
       // Filter by property
       if (filterProperty !== 'all' && bill.propertyId !== filterProperty) return false;
 
+      // Filter by bill type
+      if (filterBillType !== 'all' && bill.type !== filterBillType) return false;
+
+      // Filter by date range
+      const billDate = new Date((bill.issuedDate as Timestamp).toDate());
+      if (filterStartDate) {
+         const newFD = filterStartDate.split("-");
+         const startDate = new Date(Number(newFD[0]), Number(newFD[1]) - 1, Number(newFD[2]));
+         if (billDate < startDate) return false;
+      }
+      if (filterEndDate) {
+         const newFD = filterEndDate.split("-");
+         const endDate = new Date(Number(newFD[0]), Number(newFD[1]) - 1, Number(newFD[2]));
+         if (billDate > endDate) return true;
+      }
+
       return true;
    });
-   
+
+   const resetFilters = ()=>{
+      setFilterProperty("all")
+      setFilterBillType("all")
+      setFilterStartDate("")
+      setFilterEndDate("");
+   }
+
    const handlePaymentAmountChange = (id: string, value: number) => {
       const newAmount = Number(value.toFixed(2));
       let amount_paid = 0
-      const newSplit = splitTenants.map((split, i) =>{
-         if(splitTenants[i].tenant.id === id){
+      const newSplit = splitTenants.map((split, i) => {
+         if (splitTenants[i].tenant.id === id) {
             splitTenants[i].payment.amount_payment = newAmount
          }
 
-         if(splitTenants[i].payment.amount_paid){
+         if (splitTenants[i].payment.amount_paid) {
             splitTenants[i].payment.amount_paid = newAmount;
             splitTenants[i].payment.paidDate = new Date();
             amount_paid += splitTenants[i].payment.amount_paid;
          }
          return split;
       });
-      
-      if(splitTenantsSaved){
-         const newSplit = splitTenantsSaved.map((split, i) =>{
-            if(splitTenantsSaved[i].tenant.id === id){
+
+      if (splitTenantsSaved) {
+         const newSplit = splitTenantsSaved.map((split, i) => {
+            if (splitTenantsSaved[i].tenant.id === id) {
                splitTenantsSaved[i].payment.amount_payment = newAmount
             }
 
-            if(splitTenantsSaved[i].payment.amount_paid){
+            if (splitTenantsSaved[i].payment.amount_paid) {
                splitTenantsSaved[i].payment.amount_paid = newAmount
                amount_paid += splitTenantsSaved[i].payment.amount_paid;
             }
@@ -85,37 +113,37 @@ const BillsManagement = () => {
       }
       setSplitTenants(newSplit)
       setSplitEvenly(false);
-      if(currentBill?.amount){
-         setCurrentBill({...currentBill, balance: parseFloat((currentBill.amount - amount_paid).toFixed(2))})
+      if (currentBill?.amount) {
+         setCurrentBill({ ...currentBill, balance: parseFloat((currentBill.amount - amount_paid).toFixed(2)) })
       }
    };
 
-   const handleMarkBillPaid = (id:string, checked:boolean)=>{
-      const newSplit = splitTenants.map((split, i) =>{
-         if(splitTenants[i].tenant.id === id){
+   const handleMarkBillPaid = (id: string, checked: boolean) => {
+      const newSplit = splitTenants.map((split, i) => {
+         if (splitTenants[i].tenant.id === id) {
             splitTenants[i].payment.amount_paid = checked ? splitTenants[i].payment.amount_payment : 0;
             splitTenants[i].payment.paidDate = checked ? new Date() : undefined;
             let newBalance = currentBill?.balance || 0;
-            if(checked && splitTenants[i].payment.amount_payment){
+            if (checked && splitTenants[i].payment.amount_payment) {
                newBalance -= splitTenants[i].payment.amount_payment;
-            }else if(!checked && splitTenants[i].payment.amount_payment){
+            } else if (!checked && splitTenants[i].payment.amount_payment) {
                newBalance += splitTenants[i].payment.amount_payment;
             }
-            setCurrentBill({...currentBill, balance: parseFloat(newBalance.toFixed(2))})
+            setCurrentBill({ ...currentBill, balance: parseFloat(newBalance.toFixed(2)) })
          }
          return split;
       });
       setSplitTenants(newSplit)
    }
 
-   const handleEditBill = (bill:Partial<Bill>)=>{
+   const handleEditBill = (bill: Partial<Bill>) => {
       // get payments and tenants
       const newSplits = paymentTenantBills.filter(payment => payment.bill_id === bill.id).map(payment => {
-         const tenant:Partial<Tenant> = tenants.find(tenant => tenant.id === payment.tenant_id) || {};
-         
-         return{
-            tenant: {...tenant},
-            payment: {...payment},
+         const tenant: Partial<Tenant> = tenants.find(tenant => tenant.id === payment.tenant_id) || {};
+
+         return {
+            tenant: { ...tenant },
+            payment: { ...payment },
          }
       });
       setSplitTenantsSaved(newSplits);
@@ -134,12 +162,12 @@ const BillsManagement = () => {
          setIsLoading(true);
 
          const billToInsert = JSON.parse(JSON.stringify(currentBill));
-         
+
          // Check dates
-         if(currentBill.issuedDate instanceof Timestamp){
+         if (currentBill.issuedDate instanceof Timestamp) {
             billToInsert.issuedDate = currentBill.issuedDate.toDate()
          }
-         if(currentBill.dueDate instanceof Timestamp){
+         if (currentBill.dueDate instanceof Timestamp) {
             billToInsert.dueDate = currentBill.dueDate.toDate()
          }
 
@@ -158,45 +186,45 @@ const BillsManagement = () => {
          setIsLoading(false);
       }
    };
-   
-   const handleOnDelete = async ()=>{
+
+   const handleOnDelete = async () => {
       setIsLoading(true);
-      try{
+      try {
          const resp = await del_bill(currentBill);
          const data = await resp.json();
-         if(data.success){
+         if (data.success) {
             showNotification("success", "Bill deleted successfully")
             handleOnCloseClick();
-         }else{
+         } else {
             showNotification("error", "Bill was not deleted. Please try again.")
          }
-      }catch{
-         
-      }finally{
+      } catch {
+
+      } finally {
          setIsLoading(false);
          setShowModalConfirmationDeleteBill(false);
       }
    }
 
-   const handleOnUnnasign = async(payment:Partial<Payment>)=>{
+   const handleOnUnnasign = async (payment: Partial<Payment>) => {
       setPaymentToUnnasign(payment);
       setShowModalConfirmationUnnasign(true);
    }
 
-   const unnasign = async()=>{
+   const unnasign = async () => {
       setIsLoading(true);
-      try{
+      try {
          const resp = await del_assign(paymentToUnnasign);
          const data = await resp.json();
-         if(data.success){
+         if (data.success) {
             showNotification("success", "Tenant unnasigned successfully")
             handleOnCloseClick();
-         }else{
+         } else {
             showNotification("error", "Tenant was not unnasigned. Please try again.")
          }
-      }catch{
-         
-      }finally{
+      } catch {
+
+      } finally {
          setIsLoading(false);
          setShowModalConfirmationUnnasign(false);
       }
@@ -212,34 +240,34 @@ const BillsManagement = () => {
          if (!filteredRooms || !tenantRentedOnBillDate) return false;
          return true;
       });
-      
+
       if (propertyTenants.length > 0) {
          const splitAmount = Number(((currentBill?.amount || 0) / propertyTenants.length).toFixed(2));
          const newSplits = propertyTenants.map(tenant => {
 
-            const t:Partial<Tenant> = structuredClone({
+            const t: Partial<Tenant> = structuredClone({
                id: tenant.id,
                name: tenant.name,
                lease_start: new Date((tenant.lease_start as Timestamp).toDate()),
                lease_end: new Date((tenant.lease_end as Timestamp).toDate()),
             })
-            
+
             const p: Partial<Payment> = {
                amount_payment: splitEvenly ? splitAmount : 0
             }
 
-            return{
-               tenant:t,
-               payment:p,
+            return {
+               tenant: t,
+               payment: p,
             }
          });
 
-         if(splitTenantsSaved){
+         if (splitTenantsSaved) {
             const nSplit = newSplits.filter(split => {
-               const result = splitTenantsSaved.flatMap(item => Object.values(item)).find(item => item.id === split.tenant.id );
-               if(result){
+               const result = splitTenantsSaved.flatMap(item => Object.values(item)).find(item => item.id === split.tenant.id);
+               if (result) {
                   return false
-               }else{
+               } else {
                   return true;
                }
             });
@@ -250,37 +278,37 @@ const BillsManagement = () => {
                split.payment.amount_payment = splitEvenly ? splitAmount : 0
                return split
             });
-            
+
             setSplitTenantsSaved(newSplitsSaved);
-         }else{
+         } else {
             setSplitTenants(newSplits);
          }
       } else {
          setSplitTenants([]);
       }
    }, [currentBill.propertyId, currentBill.amount, currentBill.issuedDate, currentBill.dueDate]);
-   
 
-   useEffect(()=>{
+
+   useEffect(() => {
       if (splitEvenly && currentBill.amount) { // Split Evenly only when true
          const splitAmount = Number((currentBill.amount / (splitTenants.length + splitTenantsSaved.length)).toFixed(2));
          const newSplits = splitTenants.map(split => ({
             tenant: split.tenant,
             payment: {
-               ...split.payment, amount_payment:splitAmount
+               ...split.payment, amount_payment: splitAmount
             }
          }));
 
          const newSplitsSaved = splitTenantsSaved.map(split => ({
             tenant: split.tenant,
             payment: {
-               ...split.payment, amount_payment:splitAmount
+               ...split.payment, amount_payment: splitAmount
             }
          }));
          setSplitTenants(newSplits);
          setSplitTenantsSaved(newSplitsSaved);
       }
-   },[splitEvenly])
+   }, [splitEvenly])
 
    const handleOnCloseClick = () => {
       setShowCreateModal(false)
@@ -295,12 +323,12 @@ const BillsManagement = () => {
 
    return (
       <div className="container mx-auto px-4 py-8">
-         
+
          <ModalConfirmation
             isOpen={showModalConfirmationDeleteBill}
             setIsOpen={setShowModalConfirmationDeleteBill}
             onConfirm={handleOnDelete}
-            title = "Delete bill"
+            title="Delete bill"
             message='Are you sure you want to delete this bill?'
             isLoading={isLoading}
             isDangerous={false}
@@ -310,7 +338,7 @@ const BillsManagement = () => {
             isOpen={showModalConfirmationUnnasign}
             setIsOpen={setShowModalConfirmationUnnasign}
             onConfirm={unnasign}
-            title = "Unnasign tenant"
+            title="Unnasign tenant"
             message='Are you sure you want to unnasign this tenant? It will delete his unpaid payment.'
             isLoading={isLoading}
             isDangerous={true}
@@ -384,6 +412,54 @@ const BillsManagement = () => {
                   </select>
                </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+               <div>
+                  <label htmlFor="billTypeFilter" className="block text-sm font-medium text-gray-700 mb-1">
+                     Bill Type
+                  </label>
+                  <select
+                     id="billTypeFilter"
+                     value={filterBillType}
+                     onChange={(e) => setFilterBillType(e.target.value)}
+                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                     <option value="all">All Bill Types</option>
+                     {listBillTypes.map((type, index) => (
+                        <option key={index} value={type}>{type}</option>
+                     ))}
+                  </select>
+               </div>
+
+               <div>
+                  <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+                     From Date
+                  </label>
+                  <input
+                     type="date"
+                     id="startDate"
+                     value={filterStartDate}
+                     onChange={(e) => setFilterStartDate(e.target.value)}
+                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+               </div>
+
+               <div>
+                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                     To Date
+                  </label>
+                  <input
+                     type="date"
+                     id="endDate"
+                     value={filterEndDate}
+                     onChange={(e) => setFilterEndDate(e.target.value)}
+                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+               </div>
+            </div>
+            <div className='mt-2'>
+               <button type='button' onClick={resetFilters} className='bg-blue-600 hover:bg-blue-500 rounded-md text-white p-1'>Reset filters</button>
+            </div>
          </div>
 
          {/* Bills Table */}
@@ -424,8 +500,8 @@ const BillsManagement = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                      {filteredBills.length > 0 ? (
                         filteredBills.map((bill) => {
-                           const t = paymentTenantBills.filter(payment => payment.bill_id === bill.id).map(payment=>{
-                              if(payment.bill_id === bill.id){
+                           const t = paymentTenantBills.filter(payment => payment.bill_id === bill.id).map(payment => {
+                              if (payment.bill_id === bill.id) {
                                  return tenants.find(tenant => tenant.id === payment.tenant_id)
                               }
                            })
@@ -433,7 +509,7 @@ const BillsManagement = () => {
                            const p = properties.find(p => p.id === bill.propertyId);
 
                            // get sum of payments done
-                           const payments = paymentTenantBills.reduce((amount, p) => amount + ((p.bill_id === bill.id && p.status==="Paid") ?  p.amount_paid : 0), 0);
+                           const payments = paymentTenantBills.reduce((amount, p) => amount + ((p.bill_id === bill.id && p.status === "Paid") ? p.amount_paid : 0), 0);
                            const is_amount_paid = payments >= bill.amount;
 
                            const p_title = p ? p.title : null;
@@ -465,15 +541,15 @@ const BillsManagement = () => {
                                  <td className="px-6 py-4 whitespace-nowrap">
                                     <span className={`px-2 py-1 text-xs rounded-full ${is_amount_paid
                                        ? 'bg-green-100 text-green-800'
-                                       : 
-                                          'bg-yellow-100 text-yellow-800'
+                                       :
+                                       'bg-yellow-100 text-yellow-800'
                                        }`}>
                                        {is_amount_paid ? "Paid" : "Pending"}
                                     </span>
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex flex-col text-gray-900">
-                                       {t.length > 0 ? t.map((tenant, i) =>{
+                                       {t.length > 0 ? t.map((tenant, i) => {
                                           return (
                                              <span key={i} className="text-xs">
                                                 {tenant && tenant.name}
@@ -488,22 +564,22 @@ const BillsManagement = () => {
                                     <div className="flex justify-end space-x-2">
                                        {bill.status === "Pending" && (
                                           <button
-                                          type='button'
-                                          className="text-blue-600 hover:text-green-900"
-                                          onClick={()=>handleEditBill(bill)}
+                                             type='button'
+                                             className="text-blue-600 hover:text-green-900"
+                                             onClick={() => handleEditBill(bill)}
                                           >
                                              Edit & Assign
                                           </button>
                                        )}
-                                       
+
                                        {t.length <= 0 && (
                                           <button
-                                          type='button'
-                                          className="text-red-600 hover:text-red-900"
-                                          onClick={()=> {
-                                             setCurrentBill(bill);
-                                             setShowModalConfirmationDeleteBill(true);
-                                          }}
+                                             type='button'
+                                             className="text-red-600 hover:text-red-900"
+                                             onClick={() => {
+                                                setCurrentBill(bill);
+                                                setShowModalConfirmationDeleteBill(true);
+                                             }}
                                           >
                                              Delete
                                           </button>
@@ -611,11 +687,11 @@ const BillsManagement = () => {
                                        name="issuedDate"
                                        required
                                        defaultValue={currentBill.issuedDate instanceof Timestamp ? (currentBill.issuedDate as Timestamp).toDate().toISOString().split("T")[0] : ""}
-                                       onKeyDown={(e)=>e.preventDefault()}
-                                       onClick={(e)=> (e.target as HTMLInputElement).showPicker()}
+                                       onKeyDown={(e) => e.preventDefault()}
+                                       onClick={(e) => (e.target as HTMLInputElement).showPicker()}
                                        onChange={(e) => {
                                           const d = (e.target.value as string).split("-")
-                                          setCurrentBill({ ...currentBill, issuedDate: new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2]))})
+                                          setCurrentBill({ ...currentBill, issuedDate: new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2])) })
                                        }}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-5 px-4 py-2 border peer"
                                        placeholder="123 Main St, City, State"
@@ -636,11 +712,11 @@ const BillsManagement = () => {
                                        required
                                        min={currentBill.issuedDate && (currentBill.issuedDate instanceof Timestamp ? (currentBill.issuedDate as Timestamp).toDate().toISOString().split("T")[0] : new Date(currentBill.issuedDate as Date).toISOString().split("T")[0]) || ""}
                                        defaultValue={currentBill.dueDate instanceof Timestamp ? (currentBill.dueDate as Timestamp).toDate().toISOString().split("T")[0] : ""}
-                                       onKeyDown={(e)=>e.preventDefault()}
-                                       onClick={(e)=> (e.target as HTMLInputElement).showPicker()}
+                                       onKeyDown={(e) => e.preventDefault()}
+                                       onClick={(e) => (e.target as HTMLInputElement).showPicker()}
                                        onChange={(e) => {
                                           const d = (e.target.value as string).split("-")
-                                          setCurrentBill({ ...currentBill, dueDate: new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2]))})
+                                          setCurrentBill({ ...currentBill, dueDate: new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2])) })
                                        }}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-5 px-4 py-2 border peer"
                                        placeholder="123 Main St, City, State"
@@ -719,14 +795,14 @@ const BillsManagement = () => {
 
                               {(splitTenants.length > 0 || splitTenantsSaved.length > 0) && (
                                  <AsignBills
-                                 bill={currentBill}
-                                 tenantSplits={splitTenants}
-                                 tenantsSplitSaved={splitTenantsSaved}
-                                 handlePaymentAmountChange={handlePaymentAmountChange}
-                                 handleMarkBillPaid={handleMarkBillPaid}
-                                 handleOnUnnasign={handleOnUnnasign}
-                                 splitEvenly={splitEvenly}
-                                 setSplitEvenly={setSplitEvenly}
+                                    bill={currentBill}
+                                    tenantSplits={splitTenants}
+                                    tenantsSplitSaved={splitTenantsSaved}
+                                    handlePaymentAmountChange={handlePaymentAmountChange}
+                                    handleMarkBillPaid={handleMarkBillPaid}
+                                    handleOnUnnasign={handleOnUnnasign}
+                                    splitEvenly={splitEvenly}
+                                    setSplitEvenly={setSplitEvenly}
                                  />
                               )}
                            </div>
