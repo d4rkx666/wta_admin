@@ -62,7 +62,8 @@ const BillsManagement = () => {
          }
 
          if(splitTenants[i].payment.amount_paid){
-            splitTenants[i].payment.amount_paid = newAmount
+            splitTenants[i].payment.amount_paid = newAmount;
+            splitTenants[i].payment.paidDate = new Date();
             amount_paid += splitTenants[i].payment.amount_paid;
          }
          return split;
@@ -93,6 +94,7 @@ const BillsManagement = () => {
       const newSplit = splitTenants.map((split, i) =>{
          if(splitTenants[i].tenant.id === id){
             splitTenants[i].payment.amount_paid = checked ? splitTenants[i].payment.amount_payment : 0;
+            splitTenants[i].payment.paidDate = checked ? new Date() : undefined;
             let newBalance = currentBill?.balance || 0;
             if(checked && splitTenants[i].payment.amount_payment){
                newBalance -= splitTenants[i].payment.amount_payment;

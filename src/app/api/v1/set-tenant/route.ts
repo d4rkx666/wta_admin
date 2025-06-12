@@ -23,6 +23,7 @@ export async function POST(req: Request) {
   const tenant = JSON.parse(formData.getAll('tenant')[0] as string) as Tenant;
   const deposit = JSON.parse(formData.getAll('deposit')[0] as string) as Payment;
   const pastRents = JSON.parse(formData.getAll('pastRents')[0] as string) as Payment[];
+  const futureRents = JSON.parse(formData.getAll('futureRents')[0] as string) as Payment[];
   const contractFile = formData.getAll('contractFile')[0] as File
   const idFile = formData.getAll('idFile')[0] as File
 
@@ -34,8 +35,7 @@ export async function POST(req: Request) {
   let userIdRollback = "";
   try {
 
-    
-    if (tenant.id == "") { // New tenant
+    if (!tenant.id) { // New tenant
 
       // Create User
       const userRecord = await getAuth().createUser({
@@ -63,15 +63,20 @@ export async function POST(req: Request) {
         firstTime: true,
         createdAt: new Date(Date.now()),
       }
-
+      
       // 2- setup deposit
       deposit.id = uuidv4();
       deposit.tenant_id = tenant.id;
-      deposit.payment_method = "E-Transfer";
+      deposit.payment_method = "Other";
       deposit.type = "deposit";
-      deposit.status = "Pending";
+      deposit.status = "Paid";
+      deposit.amount_paid = deposit.amount_payment;
+      deposit.paidDate = new Date(deposit.paidDate as Date);
       deposit.is_current = true;
       deposit.createdAt = new Date(Date.now());
+      
+      // mark deposit paid
+      tenant.has_paid_deposit = true;
 
       // 3- setup past rents
       const pastRentsToInsert:Partial<Payment>[] = []
@@ -96,52 +101,30 @@ export async function POST(req: Request) {
       if(!room){
         return NextResponse.json({ success: false, message:"Room not found"});
       }
-
-      if(deposit.amount_payment && deposit.amount_payment > 0){
-        tenant.has_paid_deposit = true;
-        deposit.status = "Paid";
-        deposit.amount_paid = deposit.amount_payment;
-        deposit.paidDate = new Date(Date.now());
-      }
       
       // 5- Create future rents depending on the month
-      const rents:Partial<Payment>[] = []; // rents
-      let currentYear = new Date().getUTCFullYear()
-      let currentMonth = new Date().getUTCMonth() + 1;  // skips current month
-      console.log(currentMonth, new Date().getUTCDate(), "dates")
+      const futureRentsToInsert:Partial<Payment>[] = []
+      let isCurrent = true;
+      
+      for(const rent of futureRents){
+        rent.id = uuidv4();
+        rent.tenant_id = tenant.id;
+        rent.type = "rent";
+        rent.amount_payment = room.price;
+        rent.status = "Pending";
+        rent.is_current = isCurrent;
+        rent.dueDate = new Date(rent.dueDate as Date);
+        rent.createdAt = new Date();
 
-      const endYear = new Date(tenant.lease_end as Date).getUTCFullYear()
-      const endMonth = new Date(tenant.lease_end as Date).getUTCMonth();
+        isCurrent = false;
 
-      let current = true;
-      while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
-
-        const newRent:Partial<Payment> = {
-          id: uuidv4(),
-          tenant_id: tenant.id,
-          type: "rent",
-          amount_payment: room.price,
-          dueDate: new Date(currentYear, currentMonth, 1),
-          is_current: current,
-          createdAt: new Date(Date.now()),
-          status: "Pending",
-        }
-        rents.push(newRent)
-
-        current = false;
-
-        // Move to the next year
-        if (currentMonth === 11) {
-          currentMonth = 0;
-          currentYear++;
-        } else {
-          currentMonth++;
-        }
+        futureRentsToInsert.push(rent)
       }
 
       // update room to available false
       const roomToUpdate: Partial<Room> ={
-        available: false
+        available: false,
+        date_availability: tenant.lease_end
       }
       
       // INSERT FILES IF EXISTS
@@ -180,7 +163,7 @@ export async function POST(req: Request) {
       }
 
       // insert all rents in the transaction
-      for(const rent of rents){
+      for(const rent of futureRentsToInsert){
         if(!rent.id) return;
 
         const r:MultipleDoc = {
@@ -192,7 +175,6 @@ export async function POST(req: Request) {
         dataToInsert.push(r);
       }
       console.log(dataToInsert)
-      
       await firestoreService.setMultipleDocuments(dataToInsert);
     }else{ // update tenant
       const tenantToUpdate: Partial<Tenant> = {id:tenant.id, name: tenant.name, email: tenant.email, phone: tenant.phone, couple_name: tenant.couple_name};

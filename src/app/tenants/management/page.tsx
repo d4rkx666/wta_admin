@@ -29,6 +29,7 @@ const TenantManagement = () => {
    const [currentRoom, setCurrentRoom] = useState<Partial<Room>>({});
    const [depositPayment, setDepositPayment] = useState<Partial<Payment>>({});
    const [pastRents, setPastRents] = useState<Partial<Payment>[]>([]);
+   const [futureRents, setFutureRents] = useState<Partial<Payment>[]>([]);
 
    const [hasCouple, setHasCouple] = useState(false);
 
@@ -66,11 +67,13 @@ const TenantManagement = () => {
       try {
          setIsLoading(true);
 
+         // create deep copy of currentTenant
          const tenantToInsert: Partial<Tenant> = JSON.parse(JSON.stringify(currentTenant));
          if (!hasCouple) {
             tenantToInsert.couple_name = "";
          }
 
+         // check if there is an empty field of past rents
          let rentsError = false;
          if(pastRents.length > 0){
             for(const rent of pastRents){
@@ -87,12 +90,16 @@ const TenantManagement = () => {
             showNotification('error', 'The amount of rents cannnot be empty!');
             return;
          }
-         console.log(tenantToInsert)
+
+         // set paid date deposit
+         depositPayment.paidDate = new Date();
+
          // Prepare FormData
          const formData = new FormData();
          formData.append('tenant', JSON.stringify(tenantToInsert));
          formData.append('deposit', JSON.stringify(depositPayment));
          formData.append('pastRents', JSON.stringify(pastRents));
+         formData.append('futureRents', JSON.stringify(futureRents));
 
          if(contractFile){
             formData.append('contractFile', contractFile);
@@ -220,8 +227,37 @@ const TenantManagement = () => {
             currentMonth++;
          }
       }
-
+      
+      console.log("past", rents)
       setPastRents(rents)
+   }
+
+   const handleFutureRents = (lease_end:Date)=>{
+      const rents:Partial<Payment>[] = []; // rents
+      let currentYear = new Date().getUTCFullYear();
+      let currentMonth = new Date().getUTCMonth() + 1;  // skips current month
+
+      const endYear = new Date(lease_end).getUTCFullYear();
+      const endMonth = new Date(lease_end).getUTCMonth();
+
+      while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
+
+         const newRent:Partial<Payment> = {
+            dueDate: new Date(currentYear, currentMonth, 1),
+         }
+         rents.push(newRent)
+
+         // Move to the next year
+         if (currentMonth === 11) {
+            currentMonth = 0;
+            currentYear++;
+         } else {
+            currentMonth++;
+         }
+      }
+      
+      console.log("future", rents)
+      setFutureRents(rents)
    }
 
    const handleEditPastRentAmount = (value:number, index:number)=>{
@@ -667,6 +703,7 @@ const TenantManagement = () => {
                                           onChange={(e) => {
                                              const d = (e.target.value as string).split("-")
                                              setCurrentTenant({ ...currentTenant, lease_end: new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2]))});
+                                             handleFutureRents(new Date(e.target.value));
                                           }}
                                           className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border disabled:bg-gray-200"
                                        />

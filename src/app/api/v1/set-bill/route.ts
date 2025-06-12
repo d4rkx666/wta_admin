@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
         if(hasPaid){
           // set paid date
-          split.payment.paidDate = new Date();
+          split.payment.paidDate = new Date(split.payment.paidDate as Date);
         }
 
         split.payment.id = uuidv4();
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
         split.payment.status = hasPaid ? "Paid" : "Pending";
         split.payment.tenant_id = split.tenant.id
         split.payment.type="bills";
-        split.payment.dueDate = new Date(new Date(new Date().setMonth(new Date().getMonth() + 1))); // one month after
+        split.payment.dueDate = new Date(bill.dueDate as Date);
         split.payment.createdAt = new Date(Date.now());
         return split.payment;
       })
@@ -56,6 +56,8 @@ export async function POST(req: Request) {
         }
         dataToInsert.push(toInsert);
       }
+      
+      console.log(dataToInsert)
       await firestoreService.setMultipleDocuments(dataToInsert);
       
     }else{
@@ -94,7 +96,7 @@ export async function POST(req: Request) {
 
         if(hasPaid){
           // set paid date
-          split.payment.paidDate = new Date();
+          split.payment.paidDate = new Date(split.payment.paidDate as Date);
         }
 
         split.payment.id = uuidv4();
@@ -103,7 +105,7 @@ export async function POST(req: Request) {
         split.payment.status = hasPaid ? "Paid" : "Pending";
         split.payment.tenant_id = split.tenant.id
         split.payment.type="bills";
-        split.payment.dueDate = new Date(new Date(new Date().setMonth(new Date().getMonth() + 1))); // one month after
+        split.payment.dueDate = new Date(bill.dueDate as Date);
         split.payment.createdAt = new Date(Date.now());
         return split.payment;
       })
@@ -118,7 +120,7 @@ export async function POST(req: Request) {
 
       // update multiple documents
       console.log(dataToInsert);
-      await firestoreService.setMultipleDocuments(dataToInsert);
+      //await firestoreService.setMultipleDocuments(dataToInsert);
     }
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -1,13 +1,9 @@
+import { Timestamp } from "firebase/firestore";
 import { Amenity } from "./amenity";
 
 type Images = {
   id: string;
   url: string;
-}
-
-export interface IFirestoreTimestamp {
-  seconds: number;
-  nanoseconds: number;
 }
 
 export type Room= {
@@ -20,7 +16,7 @@ export type Room= {
   fixed_price: number;
   images: Images[];
   available: boolean;
-  date_availability: IFirestoreTimestamp;
+  date_availability: Date | Timestamp;
   private_washroom: boolean;
   description: string;
   specific_amenities: Amenity[]
@@ -36,7 +32,7 @@ export const RoomDefaultVal: Room = {
     fixed_price: 0,
     images: [],
     available: true,
-    date_availability: {nanoseconds:0, seconds:0},
+    date_availability: new Date(),
     private_washroom: false,
     description: '',
     specific_amenities: [],

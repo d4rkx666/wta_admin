@@ -137,7 +137,7 @@ export default function AsignBills({ bill, tenantSplits, tenantsSplitSaved, hand
          <div className="mt-3 pt-3 border-t flex justify-between">
             <span className="text-sm font-medium text-gray-700">Total:</span>
             <span className="text-sm font-medium">
-               ${total}
+               ${total.toFixed(2)}
 
                {diff !== 0  &&
                   <span className="ml-2 text-red-500">
