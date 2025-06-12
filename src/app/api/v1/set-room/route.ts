@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     }
 
     // Fix timestamp
-    room.date_availability = toTimestamp(room.date_availability)
+    room.date_availability = new Date();
 
     console.log(room)
     //await firestoreService.upsertData("properties", propertyId, "rooms", room, room.id)
