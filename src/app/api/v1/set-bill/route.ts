@@ -9,7 +9,7 @@ import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: Request) {
-  const {bill, tenantsAndPayments}: {bill: Bill, tenantsAndPayments:{tenant: Tenant; payment: Payment }[]} = await req.json();
+  const {bill, tenantsAndPayments, tenantsAndPaymentsSaved}: {bill: Bill, tenantsAndPayments:{tenant: Tenant; payment: Payment }[], tenantsAndPaymentsSaved:{tenant: Tenant; payment: Payment }[]} = await req.json();
 
   // Check auth
   if(!getSession()){
@@ -67,23 +67,18 @@ export async function POST(req: Request) {
         dueDate: new Date(bill.dueDate as Date),
         amount: bill.amount,
         balance: bill.balance,
-        notes: bill.notes,
+        notes: bill.notes || "",
         status: bill.balance <= 0.01 ? "Paid" : "Pending"
       }
+
       await firestoreService.setDocument("bills", bill.id, billToUpdate);
 
       const dataToInsert: MultipleDoc[] = []
-      for(const typ of tenantsAndPayments ){
+      // Updating already saved
+      for(const typ of tenantsAndPaymentsSaved ){
         const paymentToUpdate: Partial<Payment> = {
           id: typ.payment.id,
           amount_payment: typ.payment.amount_payment
-        }
-
-        if(typ.payment.status === "Pending" && typ.payment.amount_paid){
-          paymentToUpdate.amount_paid = typ.payment.amount_paid;
-          paymentToUpdate.status = "Paid";
-          paymentToUpdate.paidDate = new Date();
-          paymentToUpdate.payment_method = "Other"
         }
 
         dataToInsert.push({
@@ -93,7 +88,36 @@ export async function POST(req: Request) {
         })
       }
 
+      // Inserting new ones
+      const payments:Payment[] = tenantsAndPayments.map(split=>{
+        const hasPaid = split.payment.amount_payment === split.payment.amount_paid;
+
+        if(hasPaid){
+          // set paid date
+          split.payment.paidDate = new Date();
+        }
+
+        split.payment.id = uuidv4();
+        split.payment.bill_id = bill.id;
+        split.payment.is_current= hasPaid ? false : true;
+        split.payment.status = hasPaid ? "Paid" : "Pending";
+        split.payment.tenant_id = split.tenant.id
+        split.payment.type="bills";
+        split.payment.dueDate = new Date(new Date(new Date().setMonth(new Date().getMonth() + 1))); // one month after
+        split.payment.createdAt = new Date(Date.now());
+        return split.payment;
+      })
+
+      // add payments to insertion
+      for(const p of payments){
+        const toInsert = {
+          collection: "payments", docId: p.id, data: p
+        }
+        dataToInsert.push(toInsert);
+      }
+
       // update multiple documents
+      console.log(dataToInsert);
       await firestoreService.setMultipleDocuments(dataToInsert);
     }
     return NextResponse.json({ success: true });

@@ -16,6 +16,9 @@ import { Payment } from '@/types/payment';
 import { Tenant } from '@/types/tenant';
 import { useLivePayments } from '@/hooks/useLivePayments';
 import { Timestamp } from 'firebase/firestore';
+import ModalConfirmation from '@/app/components/common/ModalConfirmation';
+import { del_bill } from '@/hooks/delBill';
+import { del_assign } from '@/hooks/dellAssign';
 
 const BillsManagement = () => {
    const { showNotification } = useNotification();
@@ -25,8 +28,12 @@ const BillsManagement = () => {
    const [filterProperty, setFilterProperty] = useState<string>('all');
    const [isLoading, setIsLoading] = useState(false);
    const [currentBill, setCurrentBill] = useState<Partial<Bill>>({id:""});
+   const [paymentToUnnasign, setPaymentToUnnasign] = useState<Partial<Payment>>({id:""});
    const [splitEvenly, setSplitEvenly] = useState(true);
    const [splitTenants, setSplitTenants] = useState<{tenant: Partial<Tenant>; payment: Partial<Payment> }[]>([]);
+   const [splitTenantsSaved, setSplitTenantsSaved] = useState<{tenant: Partial<Tenant>; payment: Partial<Payment> }[]>([]);
+   const [showModalConfirmationDeleteBill, setShowModalConfirmationDeleteBill] = useState(false);
+   const [showModalConfirmationUnnasign, setShowModalConfirmationUnnasign] = useState(false);
 
    const { data: properties, loading: loadingProperties } = useLiveProperties(); // Get Properties
    const { data: bills, loading: loadingBills } = useLiveBills(); // Get Bills
@@ -60,6 +67,21 @@ const BillsManagement = () => {
          }
          return split;
       });
+      
+      if(splitTenantsSaved){
+         const newSplit = splitTenantsSaved.map((split, i) =>{
+            if(splitTenantsSaved[i].tenant.id === id){
+               splitTenantsSaved[i].payment.amount_payment = newAmount
+            }
+
+            if(splitTenantsSaved[i].payment.amount_paid){
+               splitTenantsSaved[i].payment.amount_paid = newAmount
+               amount_paid += splitTenantsSaved[i].payment.amount_paid;
+            }
+            return split;
+         });
+         setSplitTenantsSaved(newSplit)
+      }
       setSplitTenants(newSplit)
       setSplitEvenly(false);
       if(currentBill?.amount){
@@ -84,17 +106,17 @@ const BillsManagement = () => {
       setSplitTenants(newSplit)
    }
 
-   const handleEditBill = (bill:Bill)=>{
+   const handleEditBill = (bill:Partial<Bill>)=>{
       // get payments and tenants
       const newSplits = paymentTenantBills.filter(payment => payment.bill_id === bill.id).map(payment => {
          const tenant:Partial<Tenant> = tenants.find(tenant => tenant.id === payment.tenant_id) || {};
          
          return{
-            tenant,
-            payment,
+            tenant: {...tenant},
+            payment: {...payment},
          }
       });
-      setSplitTenants(newSplits);
+      setSplitTenantsSaved(newSplits);
 
       setCurrentBill(bill)
       setShowCreateModal(true)
@@ -119,12 +141,12 @@ const BillsManagement = () => {
             billToInsert.dueDate = currentBill.dueDate.toDate()
          }
 
-         const response = await set_bill(billToInsert, splitTenants);
+         const response = await set_bill(billToInsert, splitTenants, splitTenantsSaved);
 
          const data = await response.json();
          if (data.success) {
             showNotification('success', 'Property form submitted successfully!');
-            //setShowCreateModal(false);
+            setShowCreateModal(false);
          } else {
             showNotification('error', 'Something went wrong... Please check all the form data and try again.');
          }
@@ -135,8 +157,50 @@ const BillsManagement = () => {
       }
    };
    
+   const handleOnDelete = async ()=>{
+      setIsLoading(true);
+      try{
+         const resp = await del_bill(currentBill);
+         const data = await resp.json();
+         if(data.success){
+            showNotification("success", "Bill deleted successfully")
+            handleOnCloseClick();
+         }else{
+            showNotification("error", "Bill was not deleted. Please try again.")
+         }
+      }catch{
+         
+      }finally{
+         setIsLoading(false);
+         setShowModalConfirmationDeleteBill(false);
+      }
+   }
+
+   const handleOnUnnasign = async(payment:Partial<Payment>)=>{
+      setPaymentToUnnasign(payment);
+      setShowModalConfirmationUnnasign(true);
+   }
+
+   const unnasign = async()=>{
+      setIsLoading(true);
+      try{
+         const resp = await del_assign(paymentToUnnasign);
+         const data = await resp.json();
+         if(data.success){
+            showNotification("success", "Tenant unnasigned successfully")
+            handleOnCloseClick();
+         }else{
+            showNotification("error", "Tenant was not unnasigned. Please try again.")
+         }
+      }catch{
+         
+      }finally{
+         setIsLoading(false);
+         setShowModalConfirmationUnnasign(false);
+      }
+   }
+
    useEffect(() => {
-      if(currentBill.id) return;
       // Filter properties, then check each room to find all the tenants.
       const propertyTenants = tenants.filter(tenant => {
          const filteredRooms = rooms.filter(r => r.id_property == currentBill.propertyId).find(r => r.id == tenant.room_id);
@@ -151,12 +215,12 @@ const BillsManagement = () => {
          const splitAmount = Number(((currentBill?.amount || 0) / propertyTenants.length).toFixed(2));
          const newSplits = propertyTenants.map(tenant => {
 
-            const t:Partial<Tenant> = {
+            const t:Partial<Tenant> = structuredClone({
                id: tenant.id,
                name: tenant.name,
-               lease_start: tenant.lease_start,
-               lease_end: tenant.lease_end,
-            }
+               lease_start: new Date((tenant.lease_start as Timestamp).toDate()),
+               lease_end: new Date((tenant.lease_end as Timestamp).toDate()),
+            })
             
             const p: Partial<Payment> = {
                amount_payment: splitEvenly ? splitAmount : 0
@@ -167,23 +231,52 @@ const BillsManagement = () => {
                payment:p,
             }
          });
-         setSplitTenants(newSplits);
-         setCurrentBill({...currentBill, balance: currentBill.amount})
+
+         if(splitTenantsSaved){
+            const nSplit = newSplits.filter(split => {
+               const result = splitTenantsSaved.flatMap(item => Object.values(item)).find(item => item.id === split.tenant.id );
+               if(result){
+                  return false
+               }else{
+                  return true;
+               }
+            });
+            setSplitTenants([...nSplit]);
+
+
+            const newSplitsSaved = splitTenantsSaved.map(split => {
+               split.payment.amount_payment = splitEvenly ? splitAmount : 0
+               return split
+            });
+            
+            setSplitTenantsSaved(newSplitsSaved);
+         }else{
+            setSplitTenants(newSplits);
+         }
       } else {
          setSplitTenants([]);
       }
    }, [currentBill.propertyId, currentBill.amount, currentBill.issuedDate, currentBill.dueDate]);
+   
 
    useEffect(()=>{
       if (splitEvenly && currentBill.amount) { // Split Evenly only when true
-         const splitAmount = Number((currentBill.amount / splitTenants.length).toFixed(2));
+         const splitAmount = Number((currentBill.amount / (splitTenants.length + splitTenantsSaved.length)).toFixed(2));
          const newSplits = splitTenants.map(split => ({
             tenant: split.tenant,
             payment: {
                ...split.payment, amount_payment:splitAmount
             }
          }));
+
+         const newSplitsSaved = splitTenantsSaved.map(split => ({
+            tenant: split.tenant,
+            payment: {
+               ...split.payment, amount_payment:splitAmount
+            }
+         }));
          setSplitTenants(newSplits);
+         setSplitTenantsSaved(newSplitsSaved);
       }
    },[splitEvenly])
 
@@ -191,6 +284,7 @@ const BillsManagement = () => {
       setShowCreateModal(false)
       setCurrentBill({});
       setSplitTenants([]);
+      setSplitTenantsSaved([]);
    }
 
    if (loadingProperties || loadingBills || loadingTenants || loadingRooms || loadingPaymentTenantBills) {
@@ -199,6 +293,27 @@ const BillsManagement = () => {
 
    return (
       <div className="container mx-auto px-4 py-8">
+         
+         <ModalConfirmation
+            isOpen={showModalConfirmationDeleteBill}
+            setIsOpen={setShowModalConfirmationDeleteBill}
+            onConfirm={handleOnDelete}
+            title = "Delete bill"
+            message='Are you sure you want to delete this bill?'
+            isLoading={isLoading}
+            isDangerous={false}
+         />
+
+         <ModalConfirmation
+            isOpen={showModalConfirmationUnnasign}
+            setIsOpen={setShowModalConfirmationUnnasign}
+            onConfirm={unnasign}
+            title = "Unnasign tenant"
+            message='Are you sure you want to unnasign this tenant? It will delete his unpaid payment.'
+            isLoading={isLoading}
+            isDangerous={true}
+         />
+
          {/* Header and Stats */}
          <div className="mb-8">
             <div className="flex justify-between items-center mb-6">
@@ -307,7 +422,7 @@ const BillsManagement = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                      {filteredBills.length > 0 ? (
                         filteredBills.map((bill) => {
-                           const t = paymentTenantBills.map(payment=>{
+                           const t = paymentTenantBills.filter(payment => payment.bill_id === bill.id).map(payment=>{
                               if(payment.bill_id === bill.id){
                                  return tenants.find(tenant => tenant.id === payment.tenant_id)
                               }
@@ -320,7 +435,6 @@ const BillsManagement = () => {
                            const is_amount_paid = payments >= bill.amount;
 
                            const p_title = p ? p.title : null;
-
                            return (
                               <tr key={bill.id} className="hover:bg-gray-50">
                                  <td className="px-6 py-4 whitespace-nowrap">
@@ -379,6 +493,19 @@ const BillsManagement = () => {
                                              Edit & Assign
                                           </button>
                                        )}
+                                       
+                                       {t.length <= 0 && (
+                                          <button
+                                          type='button'
+                                          className="text-red-600 hover:text-red-900"
+                                          onClick={()=> {
+                                             setCurrentBill(bill);
+                                             setShowModalConfirmationDeleteBill(true);
+                                          }}
+                                          >
+                                             Delete
+                                          </button>
+                                       )}
                                     </div>
                                  </td>
                               </tr>
@@ -410,7 +537,7 @@ const BillsManagement = () => {
                      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4">
                         <div className="flex items-center justify-between">
                            <h3 className="text-lg font-semibold text-white">
-                              {currentBill.id != "" ? 'Edit Bill' : 'Add New Bill'}
+                              {currentBill.id ? 'Edit Bill' : 'Add New Bill'}
                            </h3>
                            <button
                               type="button"
@@ -588,12 +715,14 @@ const BillsManagement = () => {
 
 
 
-                              {splitTenants.length > 0 && (
+                              {(splitTenants.length > 0 || splitTenantsSaved.length > 0) && (
                                  <AsignBills
                                  bill={currentBill}
                                  tenantSplits={splitTenants}
+                                 tenantsSplitSaved={splitTenantsSaved}
                                  handlePaymentAmountChange={handlePaymentAmountChange}
                                  handleMarkBillPaid={handleMarkBillPaid}
+                                 handleOnUnnasign={handleOnUnnasign}
                                  splitEvenly={splitEvenly}
                                  setSplitEvenly={setSplitEvenly}
                                  />
@@ -614,9 +743,9 @@ const BillsManagement = () => {
                                  className="inline-flex items-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-blue-300"
                               >
                                  {isLoading ? (
-                                    currentBill.id != "" ? 'Updating Bill...' : 'Creating Bill...'
+                                    currentBill.id ? 'Updating Bill...' : 'Creating Bill...'
                                  ) : (
-                                    currentBill.id != "" ? 'Update Bill' : 'Create Bill'
+                                    currentBill.id ? 'Update Bill' : 'Create Bill'
                                  )}
                               </button>
                            </div>

@@ -33,6 +33,7 @@ export function useLivePayments() {
       const updatedDocs = snap.docs.map(doc => ({
         ...doc.data() as Payment,
       }));
+      console.log("setting new")
       setData(updatedDocs); // Update the state with live changes
     });
 

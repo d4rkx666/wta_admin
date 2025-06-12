@@ -4,8 +4,13 @@ import { Tenant } from "@/types/tenant";
 import { Payment } from "@/types/payment";
 import { Timestamp } from "firebase/firestore";
 
-export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChange, handleMarkBillPaid, splitEvenly, setSplitEvenly}: { bill: Partial<Bill>, tenantSplits:{tenant: Partial<Tenant>; payment: Partial<Payment>}[], handlePaymentAmountChange:(id:string, value:number)=>void, handleMarkBillPaid:(id:string, checked:boolean)=>void, splitEvenly:boolean, setSplitEvenly:React.Dispatch<React.SetStateAction<boolean>>}) {
+export default function AsignBills({ bill, tenantSplits, tenantsSplitSaved, handlePaymentAmountChange, handleMarkBillPaid, handleOnUnnasign, splitEvenly, setSplitEvenly}: { bill: Partial<Bill>, tenantSplits:{tenant: Partial<Tenant>; payment: Partial<Payment>}[], tenantsSplitSaved?:{tenant: Partial<Tenant>; payment: Partial<Payment>}[], handlePaymentAmountChange:(id:string, value:number)=>void, handleMarkBillPaid:(id:string, checked:boolean)=>void, handleOnUnnasign:(payment:Partial<Payment>)=>void,splitEvenly:boolean, setSplitEvenly:React.Dispatch<React.SetStateAction<boolean>>}) {
    
+   const diff1 = (tenantSplits.length > 0) && tenantSplits.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0) || 0;
+   const diff2 = (tenantsSplitSaved && tenantsSplitSaved.length > 0) && tenantsSplitSaved.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0) || 0;
+   const diff = bill.amount && bill.amount -(diff1 + diff2) || 0;
+   const total = diff1 + diff2;
+
    return (
       <div className="mt-4 border-t pt-4">
          <div className="flex items-center justify-between mb-3">
@@ -25,8 +30,10 @@ export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChan
          </div>
 
          <div className="space-y-2">
-            {tenantSplits.map(split => (
-               <div key={split.tenant.id} className="flex items-center">
+            {tenantsSplitSaved && tenantsSplitSaved.map(split => {
+               const disabled = split.payment.status !== "Pending";
+               return(
+               <div key={split.tenant.id} className="flex items-center mb-5">
                   <div className="w-1/3 text-sm text-gray-700" title={split.tenant.name}>
                      {split.tenant.name}
 
@@ -34,11 +41,67 @@ export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChan
                         <div className="flex flex-col text-xs">
                            <span>From {split.tenant.lease_start && new Date((split.tenant.lease_start as Timestamp).toDate()).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
                            <span>To {split.tenant.lease_end && new Date((split.tenant.lease_end as Timestamp).toDate()).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
+                           <span className="text-yellow-600">Assigned</span>
                         </div>
                      </div>
                   </div>
 
-                  <div className="relative flex-1 ml-2 rounded-md shadow-sm">
+                  <div className="relative flex-1 rounded-md shadow-sm">
+                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="text-gray-500 sm:text-sm">$</span>
+                     </div>
+                     <input
+                        type="number"
+                        value={split.payment.amount_payment && split.payment.amount_payment || ""}
+                        disabled={disabled}
+                        onChange={(e) => handlePaymentAmountChange(split.tenant.id ? split.tenant.id : "", Number(e.target.value))}
+                        className="block w-full pl-7 pr-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                     />
+                  </div>
+
+                  <div className="relative flex-1">
+                     <div className="flex flex-col items-center space-y-1">
+                        <span className="text-sm text-yellow-600">
+                           Payment <span className="font-bold">{split.payment.status}</span>
+                        </span>
+                        {split.payment.status === "Pending" &&
+                           <button type="button" onClick={()=> handleOnUnnasign(split.payment)} className="text-sm text-gray-600 p-1 rounded-md bg-yellow-400 hover:bg-yellow-200">
+                              Unassign
+                           </button>
+                        }
+                        
+                     </div>
+                  </div>
+
+               </div>
+            )})}
+         </div>
+
+         <div className="space-y-2">
+            {tenantSplits.map(split => {
+               if(tenantsSplitSaved){
+                  const result = tenantsSplitSaved.flatMap(item => Object.values(item)).find(item => item.id === split.tenant.id )
+                  if(result){
+                     return;
+                  }
+               }
+               return (
+               <div key={split.tenant.id} className="flex items-center">
+                  <div className="w-1/3 text-sm text-gray-700" title={split.tenant.name}>
+                     {split.tenant.name}
+
+                     <div className="text-sm text-gray-700">
+                        <div className="flex flex-col text-xs">
+                           <span>From {split.tenant.lease_start && new Date(split.tenant.lease_start as Date).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
+                           <span>To {split.tenant.lease_end && new Date(split.tenant.lease_end as Date).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="relative flex-1 rounded-md shadow-sm">
                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <span className="text-gray-500 sm:text-sm">$</span>
                      </div>
@@ -46,7 +109,7 @@ export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChan
                         type="number"
                         value={split.payment.amount_payment && split.payment.amount_payment || ""}
                         onChange={(e) => handlePaymentAmountChange(split.tenant.id ? split.tenant.id : "", Number(e.target.value))}
-                        className="block w-full pl-7 pr-12 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        className="block w-full pl-7 pr-2 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                         placeholder="0.00"
                         min="0"
                         step="0.01"
@@ -68,18 +131,19 @@ export default function AsignBills({ bill, tenantSplits, handlePaymentAmountChan
                      </div>
                   </div>
                </div>
-            ))}
+            )})}
          </div>
 
          <div className="mt-3 pt-3 border-t flex justify-between">
             <span className="text-sm font-medium text-gray-700">Total:</span>
             <span className="text-sm font-medium">
-               ${tenantSplits.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0).toFixed(2)}
-               {Math.abs(tenantSplits.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0) - (bill.amount && bill.amount || 0)) > 0.01 && (
+               ${total}
+
+               {diff !== 0  &&
                   <span className="ml-2 text-red-500">
-                     (Diff: ${((bill.amount && bill.amount || 0) - tenantSplits.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0)).toFixed(2)})
+                     (Diff: ${diff.toFixed(2)})
                   </span>
-               )}
+               }
             </span>
          </div>
       </div>
