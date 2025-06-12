@@ -3,7 +3,6 @@ import { firestoreService } from '@/lib/services/firestore-service';
 import { Room } from '@/types/room';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { toTimestamp } from '@/utils/toTimestamp';
 import { ImageItem } from '@/types/imageItem';
 import { delete_img, insert_img } from '@/utils/imgurActions';
 import { getSession } from '@/lib/auth';
