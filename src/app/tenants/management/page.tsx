@@ -106,7 +106,7 @@ const TenantManagement = () => {
          const data = await response.json();
          if (data.success) {
             showNotification('success', 'Property form submitted successfully!');
-            //setShowCreateModal(false);
+            setShowCreateModal(false);
          } else {
             showNotification('error', 'Something went wrong... Please check all the form data and try again.');
          }

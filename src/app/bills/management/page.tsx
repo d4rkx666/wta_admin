@@ -146,7 +146,7 @@ const BillsManagement = () => {
          const data = await response.json();
          if (data.success) {
             showNotification('success', 'Property form submitted successfully!');
-            setShowCreateModal(false);
+            handleOnCloseClick();
          } else {
             showNotification('error', 'Something went wrong... Please check all the form data and try again.');
          }
