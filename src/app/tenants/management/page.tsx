@@ -106,7 +106,7 @@ const TenantManagement = () => {
          const data = await response.json();
          if (data.success) {
             showNotification('success', 'Property form submitted successfully!');
-            setShowCreateModal(false);
+            handleCloseModal();
          } else {
             showNotification('error', 'Something went wrong... Please check all the form data and try again.');
          }
@@ -128,7 +128,7 @@ const TenantManagement = () => {
          const data = await response.json();
          if (data.success) {
             showNotification('success', 'Tenant deleted successfully!');
-            setShowCreateModal(false);
+            handleCloseModal();
          } else {
             showNotification('error', 'Something went wrong... Please check all the form data and try again.');
          }
