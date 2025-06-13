@@ -19,6 +19,7 @@ export type Payment = {
    paidDate: Timestamp | Date;
    createdAt: Timestamp | Date;
    paymentVerifiedDate: Timestamp | Date;
+   comments?: string;
    status: PaymentStatus;
 };
 

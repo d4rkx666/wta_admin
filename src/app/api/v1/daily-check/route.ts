@@ -5,6 +5,7 @@ import { Room } from '@/types/room';
 import { Tenant } from '@/types/tenant';
 import { Timestamp } from 'firebase/firestore';
 import { NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function GET() {
 
@@ -16,6 +17,9 @@ export async function GET() {
 
     // update payments to set is_current one month before the due date
     await setCurrentPayments()
+
+    // set penalties for unpaid rent
+    await setPenalties();
 
 
     return NextResponse.json({ success: true });
@@ -100,6 +104,48 @@ async function updateRoomsTaken() {
   }
 
   // insert all data
+  if (dataToInsert.length > 0) {
+    firestoreService.setMultipleDocuments(dataToInsert)
+  }
+}
+
+async function setPenalties(){
+  const payments = await firestoreService.getCollection("payments") as Payment[];
+
+  const penalties = payments.filter(payment=> {
+    if(payment.dueDate){
+      const today = new Date();
+      if(payment.dueDate < today && payment.type === "rent" && payment.is_current && payment.status === "Pending"){
+        return true;
+      }
+    }
+    
+  }).map(payment => {
+    const penalty: Partial<Payment> = {
+      id: uuidv4(),
+      tenant_id: payment.tenant_id,
+      amount_payment: Number(process.env.NEXT_PUBLIC_PENALTY_PRICE),
+      comments: `Late rent penalty: ${(payment.dueDate as Timestamp).toDate().toDateString()}`,
+      type: "penalty",
+      is_current: true,
+      status: "Pending",
+      createdAt: new Date(),
+    }
+
+    return penalty;
+  });
+
+
+  const dataToInsert: MultipleDoc[] = []
+  for (const penalty of penalties) {
+    if(!penalty.id) return;
+    dataToInsert.push({
+      collection: "payments",
+      docId: penalty.id,
+      data: penalty
+    })
+  }
+
   if (dataToInsert.length > 0) {
     firestoreService.setMultipleDocuments(dataToInsert)
   }
