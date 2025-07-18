@@ -38,7 +38,7 @@ export async function POST(req: Request) {
         split.payment.bill_id = bill.id;
         split.payment.is_current= hasPaid ? false : true;
         split.payment.status = hasPaid ? "Paid" : "Pending";
-        split.payment.tenant_id = split.tenant.id
+        split.payment.contract_id = split.tenant.current_contract_id
         split.payment.type="bills";
         split.payment.dueDate = new Date(bill.dueDate as Date);
         split.payment.createdAt = new Date(Date.now());
@@ -103,7 +103,7 @@ export async function POST(req: Request) {
         split.payment.bill_id = bill.id;
         split.payment.is_current= hasPaid ? false : true;
         split.payment.status = hasPaid ? "Paid" : "Pending";
-        split.payment.tenant_id = split.tenant.id
+        split.payment.contract_id = split.tenant.current_contract_id
         split.payment.type="bills";
         split.payment.dueDate = new Date(bill.dueDate as Date);
         split.payment.createdAt = new Date(Date.now());

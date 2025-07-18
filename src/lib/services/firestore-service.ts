@@ -9,6 +9,17 @@ class FirestoreService {
     return doc.exists? doc.data() : null;
   }
 
+  async getDocuments(collection: string, fieldName:string, docId: string): Promise<any | null> {
+    const collectionRef = adminDb.collection(collection);
+    const querySnapshot = await collectionRef.where(fieldName, '==', docId).get();
+
+    const documents: any[] = [];
+    querySnapshot.forEach(doc => {
+      documents.push(doc.data());
+    });
+    return documents
+  }
+
   async getCollection(collection: string): Promise<any | null> {
     const docRef = adminDb.collection(collection);
     const snap = await docRef.get();
@@ -62,6 +73,15 @@ class FirestoreService {
       for (const docData of data) {
         const docRef = adminDb.collection(docData.collection).doc(docData.docId);
         transaction.set(docRef, docData.data, { merge: true }); 
+      }
+    });
+  }
+  
+  async deleteMultipleDocuments(data:MultipleDoc[]): Promise<void>{
+    await adminDb.runTransaction( async (transaction) => {
+      for (const docData of data) {
+        const docRef = adminDb.collection(docData.collection).doc(docData.docId);
+        transaction.delete(docRef); 
       }
     });
   }

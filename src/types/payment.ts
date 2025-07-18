@@ -6,7 +6,7 @@ type PaymentMethod = "E-Transfer" | "Credit/Debit Card" | "Cash" | "Other";
 
 export type Payment = {
    id: string;
-   tenant_id: string;
+   contract_id: string;
    bill_id?: string;
    proof_img_id?: string;
    e_transfer_email?: string;
@@ -25,7 +25,7 @@ export type Payment = {
 
 export const PaymentDefaultVal:Payment = {
    id: "", 
-   tenant_id: "",
+   contract_id: "",
    type: "rent",
    payment_method: "Cash",
    amount_payment: 0,

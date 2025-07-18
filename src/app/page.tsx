@@ -14,11 +14,13 @@ import {
 import { Timestamp } from 'firebase/firestore';
 import { useMemo } from 'react';
 import Loader from './components/common/Loader';
+import { useLiveContracts } from '@/hooks/useLiveContracts';
 
 export default function Dashboard() {
 
   // DB
   const {data:tenants, loading: loadingTenants} = useLiveTenants();
+  const {data:contracts, loading: loadingContracts} = useLiveContracts();
   const {data:rooms, loading: loadingRooms} = useRoom();
   const {data:payments, loading: loadingPayments} = useLivePayments()
 
@@ -44,7 +46,7 @@ export default function Dashboard() {
   }
 
   const activeTenants:number = useMemo(()=>{
-    return tenants.filter(tenant=>new Date((tenant.lease_start as Timestamp).toDate()) <= new Date(Date.now()) && new Date((tenant.lease_end as Timestamp).toDate()) > new Date(Date.now())).length
+    return contracts.filter(tenant=>new Date((tenant.lease_start as Timestamp).toDate()) <= new Date(Date.now()) && new Date((tenant.lease_end as Timestamp).toDate()) > new Date(Date.now())).length
   },[tenants])
 
   const occupancyRate:string = useMemo(()=>{
@@ -71,7 +73,7 @@ export default function Dashboard() {
     }).slice(0,5)
   },[payments])
 
-  if( loadingTenants || loadingRooms || loadingPayments){
+  if( loadingTenants || loadingRooms || loadingPayments || loadingContracts){
     return <Loader/>
   }
 
@@ -123,7 +125,9 @@ export default function Dashboard() {
         </div>
         <div className="divide-y divide-gray-200">
           {activities.map((activity) => {
-            const tenant = tenants.find(tenant=>tenant.id === activity.tenant_id);
+            const c = contracts.find(contract => contract.id === activity.contract_id);
+            if(!c) return;
+            const tenant = tenants.find(tenant=>tenant.id === c.tenant_id);
             return(
             <div key={activity.id} className="px-5 py-4">
               <div className="flex items-center">

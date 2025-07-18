@@ -19,6 +19,7 @@ import { Timestamp } from 'firebase/firestore';
 import ModalConfirmation from '@/app/components/common/ModalConfirmation';
 import { del_bill } from '@/hooks/delBill';
 import { del_assign } from '@/hooks/dellAssign';
+import { useLiveContracts } from '@/hooks/useLiveContracts';
 
 const BillsManagement = () => {
    const { showNotification } = useNotification();
@@ -43,6 +44,7 @@ const BillsManagement = () => {
    const { data: properties, loading: loadingProperties } = useLiveProperties(); // Get Properties
    const { data: bills, loading: loadingBills } = useLiveBills(); // Get Bills
    const { data: tenants, loading: loadingTenants } = useLiveTenants(); // Get Tenants
+   const { data: contracts, loading: loadingContrats } = useLiveContracts(); // Get Contracts
    const { data: rooms, loading: loadingRooms } = useRoom(); // Get Rooms
    const { data: paymentTenantBills, loading: loadingPaymentTenantBills } = useLivePayments(); // Get Rooms
 
@@ -139,7 +141,9 @@ const BillsManagement = () => {
    const handleEditBill = (bill: Partial<Bill>) => {
       // get payments and tenants
       const newSplits = paymentTenantBills.filter(payment => payment.bill_id === bill.id).map(payment => {
-         const tenant: Partial<Tenant> = tenants.find(tenant => tenant.id === payment.tenant_id) || {};
+         const currentContract = contracts.find(c=>c.id === payment.contract_id)
+
+         const tenant: Partial<Tenant> = tenants.find(tenant => tenant.id === currentContract?.tenant_id) || {};
 
          return {
             tenant: { ...tenant },
@@ -233,10 +237,11 @@ const BillsManagement = () => {
    useEffect(() => {
       // Filter properties, then check each room to find all the tenants.
       const propertyTenants = tenants.filter(tenant => {
-         const filteredRooms = rooms.filter(r => r.id_property == currentBill.propertyId).find(r => r.id == tenant.room_id);
+         const currentContract = contracts.find(c=> c.tenant_id === tenant.id && c.status === "Active")
+         const filteredRooms = rooms.filter(r => r.id_property == currentBill.propertyId).find(r => r.id == currentContract?.room_id);
          const dueDate = currentBill.dueDate instanceof Timestamp ? currentBill.dueDate.toDate() : currentBill.dueDate
          const issuedDate = currentBill.issuedDate instanceof Timestamp ? currentBill.issuedDate.toDate() : currentBill.issuedDate
-         const tenantRentedOnBillDate = (dueDate && issuedDate) && new Date((tenant.lease_start as Timestamp).toDate()) <= dueDate && new Date((tenant.lease_end as Timestamp).toDate()) >= issuedDate;
+         const tenantRentedOnBillDate = (dueDate && issuedDate) && new Date((currentContract?.lease_start as Timestamp).toDate()) <= dueDate && new Date((currentContract?.lease_end as Timestamp).toDate()) >= issuedDate;
          if (!filteredRooms || !tenantRentedOnBillDate) return false;
          return true;
       });
@@ -244,12 +249,14 @@ const BillsManagement = () => {
       if (propertyTenants.length > 0) {
          const splitAmount = Number(((currentBill?.amount || 0) / propertyTenants.length).toFixed(2));
          const newSplits = propertyTenants.map(tenant => {
+            const currentContract = contracts.find(c=> c.tenant_id === tenant.id && c.status === "Active")
 
             const t: Partial<Tenant> = structuredClone({
                id: tenant.id,
+               current_contract_id: tenant.current_contract_id,
                name: tenant.name,
-               lease_start: new Date((tenant.lease_start as Timestamp).toDate()),
-               lease_end: new Date((tenant.lease_end as Timestamp).toDate()),
+               lease_start: new Date((currentContract?.lease_start as Timestamp).toDate()),
+               lease_end: new Date((currentContract?.lease_end as Timestamp).toDate()),
             })
 
             const p: Partial<Payment> = {
@@ -317,7 +324,7 @@ const BillsManagement = () => {
       setSplitTenantsSaved([]);
    }
 
-   if (loadingProperties || loadingBills || loadingTenants || loadingRooms || loadingPaymentTenantBills) {
+   if (loadingProperties || loadingBills || loadingTenants || loadingRooms || loadingPaymentTenantBills || loadingContrats) {
       return <Loader />;
    }
 
@@ -501,8 +508,9 @@ const BillsManagement = () => {
                      {filteredBills.length > 0 ? (
                         filteredBills.map((bill) => {
                            const t = paymentTenantBills.filter(payment => payment.bill_id === bill.id).map(payment => {
-                              if (payment.bill_id === bill.id) {
-                                 return tenants.find(tenant => tenant.id === payment.tenant_id)
+                              const currentContract = contracts.find(c=>c.id === payment.contract_id);
+                              if (currentContract?.tenant_id) {
+                                 return tenants.find(tenant => tenant.id === currentContract.tenant_id)
                               }
                            })
 

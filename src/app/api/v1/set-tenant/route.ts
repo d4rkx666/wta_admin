@@ -9,18 +9,15 @@ import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { User } from '@/types/user';
 import { getSession } from '@/lib/auth';
-import { v2 as cloudinary, UploadApiOptions } from 'cloudinary';
-
-cloudinary.config({
-  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+import { Contract } from '@/types/contract';
+import { insertFile, updateFile } from '@/utils/cloudinaryActions';
 
 export async function POST(req: Request) {
   const formData = await req.formData();
 
   const tenant = JSON.parse(formData.getAll('tenant')[0] as string) as Tenant;
+  const contract = JSON.parse(formData.getAll('contract')[0] as string) as Contract;
+  const currentContract = JSON.parse(formData.getAll('currentContract')[0] as string) as Contract;
   const deposit = JSON.parse(formData.getAll('deposit')[0] as string) as Payment;
   const pastRents = JSON.parse(formData.getAll('pastRents')[0] as string) as Payment[];
   const futureRents = JSON.parse(formData.getAll('futureRents')[0] as string) as Payment[];
@@ -48,10 +45,14 @@ export async function POST(req: Request) {
       tenant.id = userId; // asign same id to tenant
       userIdRollback = userId; // asigns to rollback in case the insertion fails 
 
-      // Verify dates
-      tenant.lease_start = new Date(tenant.lease_start as Date);
-      tenant.lease_end = new Date(tenant.lease_end as Date);
-      tenant.createdAt = new Date();
+      // Verify dates & setup Contract
+      contract.id = uuidv4();
+      contract.tenant_id = tenant.id;
+      contract.lease_start = new Date(contract.lease_start as Date);
+      contract.lease_end = new Date(contract.lease_end as Date);
+      contract.status = "Active";
+      contract.is_current = true;
+      contract.createdAt = new Date();
 
       // 1- setup user
       const user: User = {
@@ -63,10 +64,12 @@ export async function POST(req: Request) {
         firstTime: true,
         createdAt: new Date(Date.now()),
       }
+      tenant.current_contract_id = contract.id;
+      tenant.createdAt = new Date();
       
       // 2- setup deposit
       deposit.id = uuidv4();
-      deposit.tenant_id = tenant.id;
+      deposit.contract_id = contract.id;
       deposit.payment_method = "Other";
       deposit.type = "deposit";
       deposit.status = "Paid";
@@ -83,7 +86,7 @@ export async function POST(req: Request) {
       for(const rent of pastRents){
         if(!rent.amount_paid) return;
         rent.id = uuidv4();
-        rent.tenant_id = tenant.id;
+        rent.contract_id = contract.id;
         rent.payment_method = "Other";
         rent.type = "rent";
         rent.amount_payment = rent.amount_paid;
@@ -97,7 +100,7 @@ export async function POST(req: Request) {
       }
 
       // 4- Get room to get price:
-      const room:Room = await firestoreService.getDocument("rooms", tenant.room_id) as Room;
+      const room:Room = await firestoreService.getDocument("rooms", contract.room_id) as Room;
       if(!room){
         return NextResponse.json({ success: false, message:"Room not found"});
       }
@@ -108,7 +111,7 @@ export async function POST(req: Request) {
       
       for(const rent of futureRents){
         rent.id = uuidv4();
-        rent.tenant_id = tenant.id;
+        rent.contract_id = contract.id;
         rent.type = "rent";
         rent.amount_payment = room.price;
         rent.status = "Pending";
@@ -124,14 +127,14 @@ export async function POST(req: Request) {
       // update room to available false
       const roomToUpdate: Partial<Room> ={
         available: false,
-        date_availability: tenant.lease_end
+        date_availability: contract.lease_end
       }
       
       // INSERT FILES IF EXISTS
       if(contractFile){
         const public_id = await insertFile(contractFile, tenant.id, true)
         if(public_id){
-          tenant.contract_file_id = public_id; // insert the public_id
+          contract.contract_file_id = public_id; // insert the public_id
         }
       }
       if(idFile){
@@ -144,7 +147,8 @@ export async function POST(req: Request) {
       const dataToInsert: MultipleDoc[] = [
         {collection: "users", docId: user.id, data: user},
         {collection: "tenants", docId: tenant.id, data: tenant},
-        {collection: "rooms", docId: tenant.room_id, data: roomToUpdate},
+        {collection: "contracts", docId: contract.id, data: contract},
+        {collection: "rooms", docId: contract.room_id, data: roomToUpdate},
         {collection: "payments", docId: deposit.id, data: deposit},
       ]
 
@@ -178,15 +182,16 @@ export async function POST(req: Request) {
       await firestoreService.setMultipleDocuments(dataToInsert);
     }else{ // update tenant
       const tenantToUpdate: Partial<Tenant> = {id:tenant.id, name: tenant.name, email: tenant.email, phone: tenant.phone, couple_name: tenant.couple_name};
+      const contractToUpdate: Partial<Contract> = {id: currentContract.id}
 
       if(contractFile){
-        if(tenant.contract_file_id){
-          await updateFile(contractFile, tenant.contract_file_id, true)
+        if(contract.contract_file_id){
+          await updateFile(contractFile, contract.contract_file_id, true)
         }else{
-          const public_id = await insertFile(contractFile, tenant.id, true)
+          const public_id = await insertFile(contractFile, contract.id, true)
 
           if(public_id){
-            tenantToUpdate.contract_file_id = public_id; // insert the public_id
+            contractToUpdate.contract_file_id = public_id; // insert the public_id
           }
         }
       }
@@ -201,90 +206,20 @@ export async function POST(req: Request) {
           }
         }
       }
-
       await firestoreService.setDocument("tenants", tenant.id, tenantToUpdate);
+      await firestoreService.setDocument("contracts", currentContract.id, contractToUpdate);
     }
 
     
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);
-    await getAuth().deleteUser(userIdRollback)
+    if(userIdRollback !== ""){
+      await getAuth().deleteUser(userIdRollback)
+    }
     return NextResponse.json(
       { success:false, error: String(error) },
       { status: 500 }
     );
-  }
-}
-
-
-async function insertFile(file:File, folder_idTenant: string, pdf:boolean):Promise<string | null>{
-try {
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const stream_setup: UploadApiOptions = {
-      folder: folder_idTenant,
-      resource_type: 'image',
-      type: 'private',
-    }
-
-    if(pdf){
-      stream_setup.resource_type = "raw"
-      stream_setup.format = "pdf"
-    }
-
-    // eslint-disable-next-line
-    const resp:any = await new Promise((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream( stream_setup,
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        )
-        .end(buffer);
-    });
-
-    if(!resp.public_id){
-      return null;
-    }
-    console.log('Created successful:', resp);
-    return resp.public_id;
-  } catch (error) {
-    console.log(error);
-    return null;
-  }
-}
-
-async function updateFile(file: File, publicId: string, isPdf: boolean) {
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const uploadOptions: UploadApiOptions = {
-      public_id: publicId,
-      resource_type: isPdf ? 'raw' : 'image',
-      type: 'private',
-      overwrite: true,
-      invalidate: true,
-      ...(isPdf && { format: 'pdf' })
-    };
-
-    // eslint-disable-next-line
-    const resp:any = await new Promise((resolve, reject) => {
-      cloudinary.uploader
-        .upload_stream(uploadOptions, (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        })
-        .end(buffer);
-    });
-
-    console.log('Update successful:', resp);
-    return resp.public_id;
-  } catch (error) {
-    console.error('Update failed:', error);
-    return false;
   }
 }
