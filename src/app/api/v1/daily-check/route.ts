@@ -1,8 +1,8 @@
 import { firestoreService } from '@/lib/services/firestore-service';
+import { Contract } from '@/types/contract';
 import { MultipleDoc } from '@/types/multipleDocsToInsert';
 import { Payment } from '@/types/payment';
 import { Room } from '@/types/room';
-import { Tenant } from '@/types/tenant';
 import { Timestamp } from 'firebase/firestore';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
@@ -76,14 +76,14 @@ async function setCurrentPayments(){
 }
 
 async function updateRoomsTaken() {
-  const tenants = await firestoreService.getCollection("tenants") as Tenant[];
+  const contracts = await firestoreService.getCollection("contracts") as Contract[];
   const rooms = await firestoreService.getCollection("rooms") as Room[];
 
   const roomsToUpdate: Room[] = []
 
-  tenants.map(tenant => {
-    if (new Date() >= new Date((tenant.lease_end as Timestamp).toDate())) { //check if lease has ended
-      const roomUpdate = rooms.find(room => tenant.room_id === room.id); // find room
+  contracts.filter(c=>c.status === "Active").map(contract => {
+    if (new Date() >= new Date((contract.lease_end as Timestamp).toDate())) { //check if lease has ended
+      const roomUpdate = rooms.find(room => contract.room_id === room.id); // find room
       if (roomUpdate) {
         roomsToUpdate.push(roomUpdate); // push room to update
       }
@@ -123,7 +123,7 @@ async function setPenalties(){
   }).map(payment => {
     const penalty: Partial<Payment> = {
       id: uuidv4(),
-      tenant_id: payment.tenant_id,
+      contract_id:payment.contract_id,
       amount_payment: Number(process.env.NEXT_PUBLIC_PENALTY_PRICE),
       comments: `Late rent penalty: ${(payment.dueDate as Timestamp).toDate().toDateString()}`,
       type: "penalty",
