@@ -3,8 +3,9 @@ import { Bill } from "@/types/bill";
 import { Tenant } from "@/types/tenant";
 import { Payment } from "@/types/payment";
 import { Timestamp } from "firebase/firestore";
+import { Contract } from "@/types/contract";
 
-export default function AsignBills({ bill, tenantSplits, tenantsSplitSaved, handlePaymentAmountChange, handleMarkBillPaid, handleOnUnnasign, splitEvenly, setSplitEvenly}: { bill: Partial<Bill>, tenantSplits:{tenant: Partial<Tenant>; payment: Partial<Payment>}[], tenantsSplitSaved?:{tenant: Partial<Tenant>; payment: Partial<Payment>}[], handlePaymentAmountChange:(id:string, value:number)=>void, handleMarkBillPaid:(id:string, checked:boolean)=>void, handleOnUnnasign:(payment:Partial<Payment>)=>void,splitEvenly:boolean, setSplitEvenly:React.Dispatch<React.SetStateAction<boolean>>}) {
+export default function AsignBills({ bill, tenantSplits, tenantsSplitSaved, contracts, handlePaymentAmountChange, handleMarkBillPaid, handleOnUnnasign, splitEvenly, setSplitEvenly}: { bill: Partial<Bill>, tenantSplits:{tenant: Partial<Tenant>; payment: Partial<Payment>}[], tenantsSplitSaved?:{tenant: Partial<Tenant>; payment: Partial<Payment>}[], contracts:Contract[], handlePaymentAmountChange:(id:string, value:number)=>void, handleMarkBillPaid:(id:string, checked:boolean)=>void, handleOnUnnasign:(payment:Partial<Payment>)=>void,splitEvenly:boolean, setSplitEvenly:React.Dispatch<React.SetStateAction<boolean>>}) {
    
    const diff1 = (tenantSplits.length > 0) && tenantSplits.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0) || 0;
    const diff2 = (tenantsSplitSaved && tenantsSplitSaved.length > 0) && tenantsSplitSaved.reduce((sum, split) => sum + (split.payment.amount_payment ? split.payment.amount_payment : 0), 0) || 0;
@@ -32,6 +33,7 @@ export default function AsignBills({ bill, tenantSplits, tenantsSplitSaved, hand
          <div className="space-y-2">
             {tenantsSplitSaved && tenantsSplitSaved.map(split => {
                const disabled = split.payment.status !== "Pending";
+               const currentContract = contracts.find(c=>c.id === split.tenant.current_contract_id);
                return(
                <div key={split.tenant.id} className="flex items-center mb-5">
                   <div className="w-1/3 text-sm text-gray-700" title={split.tenant.name}>
@@ -39,8 +41,8 @@ export default function AsignBills({ bill, tenantSplits, tenantsSplitSaved, hand
 
                      <div className="text-sm text-gray-700">
                         <div className="flex flex-col text-xs">
-                           <span>From {split.tenant.lease_start && new Date((split.tenant.lease_start as Timestamp).toDate()).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
-                           <span>To {split.tenant.lease_end && new Date((split.tenant.lease_end as Timestamp).toDate()).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
+                           <span>From {currentContract?.lease_start && new Date((currentContract.lease_start as Timestamp).toDate()).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
+                           <span>To {currentContract?.lease_end && new Date((currentContract.lease_end as Timestamp).toDate()).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
                            <span className="text-yellow-600">Assigned</span>
                         </div>
                      </div>
@@ -88,6 +90,7 @@ export default function AsignBills({ bill, tenantSplits, tenantsSplitSaved, hand
                      return;
                   }
                }
+               const currentContract = contracts.find(c=>c.id === split.tenant.current_contract_id);
                return (
                <div key={split.tenant.id} className="flex items-center">
                   <div className="w-1/3 text-sm text-gray-700" title={split.tenant.name}>
@@ -95,8 +98,8 @@ export default function AsignBills({ bill, tenantSplits, tenantsSplitSaved, hand
 
                      <div className="text-sm text-gray-700">
                         <div className="flex flex-col text-xs">
-                           <span>From {split.tenant.lease_start && new Date(split.tenant.lease_start as Date).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
-                           <span>To {split.tenant.lease_end && new Date(split.tenant.lease_end as Date).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
+                           <span>From {currentContract?.lease_start && new Date(currentContract.lease_start as Date).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
+                           <span>To {currentContract?.lease_end && new Date(currentContract.lease_end as Date).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
                         </div>
                      </div>
                   </div>

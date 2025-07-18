@@ -12,6 +12,7 @@ import { notify_payment } from '@/hooks/notifyPayment';
 import { useNotification } from '../context/NotificationContext';
 import { get_proof_image } from '@/hooks/getProofImage';
 import Image from 'next/image';
+import { useLiveContracts } from '@/hooks/useLiveContracts';
 
 const PaymentsDashboard = () => {
    const { showNotification } = useNotification()
@@ -25,6 +26,7 @@ const PaymentsDashboard = () => {
 
    const { data: payments, loading: loadingPayments } = useLivePayments();
    const { data: tenants, loading: loadingTenants } = useLiveTenants();
+   const { data: contracts, loading: loadingContracts } = useLiveContracts();
    const { data: rooms, loading: loadingRooms } = useRoom();
    const { data: properties, loading: loadingProperties } = useLiveProperties();
 
@@ -88,7 +90,7 @@ const PaymentsDashboard = () => {
       }
    };
 
-   if (loadingPayments || loadingTenants || loadingRooms || loadingProperties) {
+   if (loadingPayments || loadingTenants || loadingRooms || loadingProperties || loadingContracts) {
       return <Loader />
    }
 
@@ -211,9 +213,10 @@ const PaymentsDashboard = () => {
                         filteredPayments.map((payment) => {
 
                            // find info for each payment
-                           const tenant = tenants.find(tenant => tenant.id === payment.tenant_id)
+                           const currentContract = contracts.find(c=> c.id === payment.contract_id);
+                           const tenant = tenants.find(tenant => tenant.id === currentContract?.tenant_id)
                            const property = properties.find(property => {
-                              const id_property = rooms.find(room => room.id === tenant?.room_id)?.id_property
+                              const id_property = rooms.find(room => room.id === currentContract?.room_id)?.id_property
                               if (property.id === id_property) {
                                  return true;
                               }

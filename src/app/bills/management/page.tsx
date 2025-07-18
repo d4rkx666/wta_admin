@@ -806,6 +806,7 @@ const BillsManagement = () => {
                                     bill={currentBill}
                                     tenantSplits={splitTenants}
                                     tenantsSplitSaved={splitTenantsSaved}
+                                    contracts={contracts}
                                     handlePaymentAmountChange={handlePaymentAmountChange}
                                     handleMarkBillPaid={handleMarkBillPaid}
                                     handleOnUnnasign={handleOnUnnasign}
