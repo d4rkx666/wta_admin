@@ -75,24 +75,25 @@ export async function POST(req: Request) {
       }
     }
 
-    console.log(dataToInsert)
-    console.log(filesToDelete)
+    
+    const currentContract = await firestoreService.getDocument("contracts", tenant.current_contract_id) as Contract
+    const changeRoom: Partial<Room> = {
+      available: true,
+    }
 
     // Deleting multiple data
     await firestoreService.deleteMultipleDocuments(dataToInsert)
 
     // Room available
-    const currentContract = await firestoreService.getDocument("contracts", tenant.current_contract_id) as Contract
-    const changeRoom: Partial<Room> = {
-      available: true,
-    }
     await firestoreService.setDocument("rooms", currentContract.room_id, changeRoom)
 
     // Deleting user auth
     await getAuth().deleteUser(tenant.id)
 
     // Delete files from cloudinary
-    await deleteMultiCloudinaryFiles(filesToDelete)
+    if(filesToDelete.length > 0){
+      await deleteMultiCloudinaryFiles(filesToDelete)
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
