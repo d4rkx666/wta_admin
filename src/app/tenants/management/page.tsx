@@ -768,9 +768,15 @@ const TenantManagement = () => {
                                        {/* Lease Dates */}
                                        <div className="flex justify-between border-b pb-3">
                                           <span className="text-gray-600">Lease Period:</span>
-                                          <span className="text-gray-900 font-medium">
-                                             {(currentContract.lease_start as Timestamp).toDate().toDateString()} - {(currentContract.lease_end as Timestamp).toDate().toDateString()}
-                                          </span>
+                                          {currentContract.status === "Permanent" ?
+                                             <span className="text-gray-900 font-medium">
+                                                {(currentContract.lease_start as Timestamp).toDate().toDateString()} - Permanent
+                                             </span>
+                                          :
+                                             <span className="text-gray-900 font-medium">
+                                                {(currentContract.lease_start as Timestamp).toDate().toDateString()} - {(currentContract.lease_end as Timestamp).toDate().toDateString()}
+                                             </span>
+                                          }
                                        </div>
 
                                        {/* Property Assignment */}
@@ -789,8 +795,8 @@ const TenantManagement = () => {
                                        <div className="flex justify-between border-b pb-3">
                                           <span className="text-gray-600">Current Contract:</span>
                                           <span className="inline-flex items-center gap-1.5">
-                                             <span className={`h-2 w-2 rounded-full ${currentContract.status === "Active" ? 'bg-green-500' : 'bg-gray-400'}`}></span>
-                                             <span className="text-gray-900 font-medium">{currentContract.status === "Active" ? 'Active' : 'Inactive'}</span>
+                                             <span className={`h-2 w-2 rounded-full ${currentContract.status === "Active" || currentContract.status === "Permanent" ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                                             <span className="text-gray-900 font-medium">{currentContract.status}</span>
                                           </span>
                                        </div>
 

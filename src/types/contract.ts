@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase/firestore";
 
-type ContractStatus = "Active" | "Terminated"
+type ContractStatus = "Active" | "Permanent" | "Terminated"
 
 export type Contract = {
    id: string;
