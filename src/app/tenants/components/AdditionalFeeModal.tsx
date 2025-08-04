@@ -10,7 +10,6 @@ export default function AdditionalFeeModal({
    setShowAdditionalFeeModal,
    handleSubmit,
    isLoading,
-   feeTypes = [] // Pass fee types list as prop
 }: {
    setShowAdditionalFeeModal: Dispatch<SetStateAction<boolean>>,
    handleSubmit: (e: FormEvent<HTMLFormElement>, fee:Partial<Payment>) => void,
@@ -23,10 +22,10 @@ export default function AdditionalFeeModal({
    const [currentPropertyId, setCurrentPropertyId] = useState<string>("")
 
    // DB
-   const { data: properties, loading: loadingProperties } = useLiveProperties();
-   const { data: rooms, loading: loadingRooms } = useRoom();
-   const { data: contracts, loading: loadingContracts } = useLiveContracts();
-   const { data: tenants, loading: loadingTenants } = useLiveTenants();
+   const { data: properties} = useLiveProperties();
+   const { data: rooms} = useRoom();
+   const { data: contracts } = useLiveContracts();
+   const { data: tenants } = useLiveTenants();
 
    const tenant_list = useMemo(() => {
       const t_list = tenants.filter(t=>{

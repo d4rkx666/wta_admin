@@ -23,13 +23,13 @@ export async function deleteMultiCloudinaryFiles(file_id:string[]):Promise<strin
     return result;
 }
 
-export async function insertFile(file:File, folder_idTenant: string, pdf:boolean):Promise<string | null>{
+export async function insertFile(file:File, folder_idContract: string, pdf:boolean):Promise<string | null>{
 try {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     const stream_setup: UploadApiOptions = {
-      folder: folder_idTenant,
+      folder: folder_idContract,
       resource_type: 'image',
       type: 'private',
     }

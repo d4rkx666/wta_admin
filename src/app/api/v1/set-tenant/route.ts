@@ -132,13 +132,13 @@ export async function POST(req: Request) {
       
       // INSERT FILES IF EXISTS
       if(contractFile){
-        const public_id = await insertFile(contractFile, tenant.id, true)
+        const public_id = await insertFile(contractFile, tenant.current_contract_id, true)
         if(public_id){
           contract.contract_file_id = public_id; // insert the public_id
         }
       }
       if(idFile){
-        const public_id = await insertFile(idFile, tenant.id, false);
+        const public_id = await insertFile(idFile, tenant.current_contract_id, false);
         if(public_id){
           tenant.identification_file_id = public_id; // insert the public_id
         }
