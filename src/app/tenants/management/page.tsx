@@ -23,6 +23,8 @@ import Image from 'next/image';
 import { Property } from '@/types/property';
 import { set_contract } from '@/hooks/setContract';
 import Link from 'next/link';
+import AdditionalFeeModal from '../components/AdditionalFeeModal';
+import { set_additional_fee } from '@/hooks/setAdditionalFee';
 
 type pastContractFiles = {
    id:string,
@@ -30,12 +32,16 @@ type pastContractFiles = {
 }
 
 const TenantManagement = () => {
+
+   // States
    const { showNotification } = useNotification();
    const [isLoading, setIsLoading] = useState(false);
    const [showCreateModal, setShowCreateModal] = useState(false);
+   const [showAdditionalFeeModal, setShowAdditionalFeeModal] = useState(false);
    const [isModalConfirmOpen, setIsModalConfirmOpen] = useState(false);
    const [showCreateContractModal, setShowCreateContractModal] = useState(false);
 
+   // Tenant info
    const [currentTenant, setCurrentTenant] = useState<Partial<Tenant>>({ id: "" });
    const [currentRooms, setCurrentRooms] = useState<Room[]>([]);
    const [currentRoom, setCurrentRoom] = useState<Partial<Room>>({});
@@ -162,6 +168,25 @@ const TenantManagement = () => {
          return;
       }
       setShowCreateContractModal(true)
+   }
+
+   const handleCreateNewAdditionalFee = async(e: FormEvent<HTMLFormElement>, fee:Partial<Payment>)=>{
+      e.preventDefault()
+      try{
+         const data = await set_additional_fee(fee);
+         const resp = await data.json();
+
+         if(resp.success){
+            setShowAdditionalFeeModal(false);
+            showNotification("success", "New fee added. The tenant now is able to see the new fee in the portal.")
+         }else{
+            showNotification("error", "Something went wrong. Please try again or contact the admin.")
+         }
+      }catch{
+
+      }finally{
+         setIsLoading(false);
+      }
    }
 
    const handleShowCreateContract = ()=>{
@@ -305,6 +330,10 @@ const TenantManagement = () => {
       }
 
       setShowCreateModal(true);
+   }
+
+   const handleAddAdditionalFee = ()=>{
+      setShowAdditionalFeeModal(true);
    }
 
    const handlePreviousRents = (lease_start: Date) => {
@@ -545,18 +574,20 @@ const TenantManagement = () => {
                                     <span className="ml-2 text-xs">Room ${room?.price || 0}</span>
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button
-                                       onClick={() => handleOnClickEdit(room, deposit, tenant)}
-                                       className="text-blue-600 hover:text-blue-900 mr-3"
-                                    >
-                                       Edit
-                                    </button>
-                                    {/*<button
-                                       onClick={() =>handleOnClickDel(tenant)}
-                                       className="text-red-600 hover:text-red-900"
-                                    >
-                                       Delete
-                                    </button>*/}
+                                    <div className='grid'>
+                                       <button
+                                          onClick={() => handleOnClickEdit(room, deposit, tenant)}
+                                          className="text-blue-600 hover:text-blue-900 mr-3"
+                                       >
+                                          Edit
+                                       </button>
+                                       <button
+                                          onClick={()=>handleAddAdditionalFee()}
+                                          className="text-blue-600 hover:text-blue-900"
+                                       >
+                                          Add additional fee
+                                       </button>
+                                    </div>
                                  </td>
                               </tr>
                            );
@@ -1002,6 +1033,14 @@ const TenantManagement = () => {
                idFile={idFile}
                idPreview={idPreview}
             />
+         }
+
+         {showAdditionalFeeModal && 
+         <AdditionalFeeModal
+            setShowAdditionalFeeModal={setShowAdditionalFeeModal}
+            handleSubmit={handleCreateNewAdditionalFee}
+            isLoading={isLoading}
+         />
          }
       </div>
    );
