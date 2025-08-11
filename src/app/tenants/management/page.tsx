@@ -145,15 +145,16 @@ const TenantManagement = () => {
          if (data.success) {
             showNotification('success', 'Tenant form submitted successfully!');
             handleCloseModal();
+
+            
+            setContractFile(null);
+            setIdFile(null)
+            setIsLoading(false);
          } else {
             showNotification('error', 'Something went wrong... Please check all the form data and try again.');
          }
       } catch (err) {
          console.log(err);
-      } finally {
-         setContractFile(null);
-         setIdFile(null)
-         setIsLoading(false);
       }
    };
 
@@ -216,10 +217,7 @@ const TenantManagement = () => {
          } else {
             showNotification('error', 'Something went wrong... Please check all the form data and try again.');
          }
-      }catch{}finally{
-
-      }
-      console.log(contract)
+      }catch{}
    }
 
    const handleDelTenant = async () => {

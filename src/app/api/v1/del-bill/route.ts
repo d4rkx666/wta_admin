@@ -3,6 +3,8 @@ import { firestoreService } from '@/lib/services/firestore-service';
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { Bill } from '@/types/bill';
+import { MultipleDoc } from '@/types/multipleDocsToInsert';
+import { Payment } from '@/types/payment';
 
 export async function POST(req: Request) {
   const bill:Bill = await req.json();
@@ -13,8 +15,25 @@ export async function POST(req: Request) {
   }
 
   try {
+    // get all payments linked to the bill
+    const payments = await firestoreService.getDocuments("payments", "bill_id", bill.id) as Payment[]
     
-    await firestoreService.deleteDocument("bills", bill.id)
+    const multipleDocs:MultipleDoc[] = [{
+      collection:"bills",
+      data: bill,
+      docId: bill.id
+    }];
+
+    for(const p of payments){
+      multipleDocs.push({
+        collection: "payments",
+        data: p,
+        docId: p.id
+      })
+    }
+
+    console.log(multipleDocs)
+    await firestoreService.deleteMultipleDocuments(multipleDocs)
     return NextResponse.json({ success: true });
   } catch (error) {
     console.log(String(error))

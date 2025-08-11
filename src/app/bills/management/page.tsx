@@ -86,15 +86,18 @@ const BillsManagement = () => {
    const handlePaymentAmountChange = (id: string, value: number) => {
       const newAmount = Number(value.toFixed(2));
       let amount_paid = 0
+      let total_tenants_amount = 0;
       const newSplit = splitTenants.map((split, i) => {
          if (splitTenants[i].tenant.id === id) {
             splitTenants[i].payment.amount_payment = newAmount
+            total_tenants_amount += splitTenants[i].payment.amount_payment;
          }
 
          if (splitTenants[i].payment.amount_paid) {
             splitTenants[i].payment.amount_paid = newAmount;
             splitTenants[i].payment.paidDate = new Date();
             amount_paid += splitTenants[i].payment.amount_paid;
+            total_tenants_amount += splitTenants[i].payment.amount_paid;
          }
          return split;
       });
@@ -116,7 +119,8 @@ const BillsManagement = () => {
       setSplitTenants(newSplit)
       setSplitEvenly(false);
       if (currentBill?.amount) {
-         setCurrentBill({ ...currentBill, balance: parseFloat((currentBill.amount - amount_paid).toFixed(2)) })
+         const adm_p = currentBill.amount - total_tenants_amount;
+         setCurrentBill({ ...currentBill, balance: parseFloat((currentBill.amount - (amount_paid + adm_p)).toFixed(2)), admin_payment: parseFloat(adm_p.toFixed(2)) })
       }
    };
 
@@ -140,7 +144,8 @@ const BillsManagement = () => {
 
    const handleEditBill = (bill: Partial<Bill>) => {
       // get payments and tenants
-      const newSplits = paymentTenantBills.filter(payment => payment.bill_id === bill.id).map(payment => {
+      const paymentBills = JSON.parse(JSON.stringify(paymentTenantBills)) as Payment[];
+      const newSplits = paymentBills.filter(payment => payment.bill_id === bill.id).map(payment => {
          const currentContract = contracts.find(c=>c.id === payment.contract_id)
 
          const tenant: Partial<Tenant> = tenants.find(tenant => tenant.id === currentContract?.tenant_id) || {};
@@ -237,7 +242,7 @@ const BillsManagement = () => {
    useEffect(() => {
       // Filter properties, then check each room to find all the tenants.
       const propertyTenants = tenants.filter(tenant => {
-         const currentContract = contracts.find(c=> c.tenant_id === tenant.id && c.status === "Active")
+         const currentContract = contracts.find(c=> c.tenant_id === tenant.id && c.status === "Active" || c.status === "Permanent")
          const filteredRooms = rooms.filter(r => r.id_property == currentBill.propertyId).find(r => r.id == currentContract?.room_id);
          const dueDate = currentBill.dueDate instanceof Timestamp ? currentBill.dueDate.toDate() : currentBill.dueDate
          const issuedDate = currentBill.issuedDate instanceof Timestamp ? currentBill.issuedDate.toDate() : currentBill.issuedDate
@@ -249,7 +254,7 @@ const BillsManagement = () => {
       if (propertyTenants.length > 0) {
          const splitAmount = Number(((currentBill?.amount || 0) / propertyTenants.length).toFixed(2));
          const newSplits = propertyTenants.map(tenant => {
-            const currentContract = contracts.find(c=> c.tenant_id === tenant.id && c.status === "Active")
+            const currentContract = contracts.find(c=> c.tenant_id === tenant.id && c.status === "Active" || c.status === "Permanent")
 
             const t: Partial<Tenant> = structuredClone({
                id: tenant.id,
@@ -268,7 +273,7 @@ const BillsManagement = () => {
                payment: p,
             }
          });
-
+         
          if (splitTenantsSaved) {
             const nSplit = newSplits.filter(split => {
                const result = splitTenantsSaved.flatMap(item => Object.values(item)).find(item => item.id === split.tenant.id);
@@ -282,7 +287,7 @@ const BillsManagement = () => {
 
 
             const newSplitsSaved = splitTenantsSaved.map(split => {
-               split.payment.amount_payment = splitEvenly ? splitAmount : 0
+               split.payment.amount_payment = splitEvenly ? splitAmount : split.payment.amount_payment
                return split
             });
 
@@ -516,10 +521,6 @@ const BillsManagement = () => {
 
                            const p = properties.find(p => p.id === bill.propertyId);
 
-                           // get sum of payments done
-                           const payments = paymentTenantBills.reduce((amount, p) => amount + ((p.bill_id === bill.id && p.status === "Paid") ? p.amount_paid : 0), 0);
-                           const is_amount_paid = payments >= bill.amount;
-
                            const p_title = p ? p.title : null;
                            return (
                               <tr key={bill.id} className="hover:bg-gray-50">
@@ -547,12 +548,12 @@ const BillsManagement = () => {
                                     </div>
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`px-2 py-1 text-xs rounded-full ${is_amount_paid
+                                    <span className={`px-2 py-1 text-xs rounded-full ${bill.status === "Paid"
                                        ? 'bg-green-100 text-green-800'
                                        :
                                        'bg-yellow-100 text-yellow-800'
                                        }`}>
-                                       {is_amount_paid ? "Paid" : "Pending"}
+                                       {bill.status}
                                     </span>
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap">
@@ -580,18 +581,26 @@ const BillsManagement = () => {
                                           </button>
                                        )}
 
-                                       {t.length <= 0 && (
+                                       {bill.status === "Paid" && (
                                           <button
                                              type='button'
-                                             className="text-red-600 hover:text-red-900"
-                                             onClick={() => {
-                                                setCurrentBill(bill);
-                                                setShowModalConfirmationDeleteBill(true);
-                                             }}
+                                             className="text-blue-600 hover:text-green-900"
+                                             onClick={() => handleEditBill(bill)}
                                           >
-                                             Delete
+                                             View
                                           </button>
                                        )}
+
+                                       <button
+                                          type='button'
+                                          className="text-red-600 hover:text-red-900"
+                                          onClick={() => {
+                                             setCurrentBill(bill);
+                                             setShowModalConfirmationDeleteBill(true);
+                                          }}
+                                       >
+                                          Delete
+                                       </button>
                                     </div>
                                  </td>
                               </tr>
@@ -824,17 +833,20 @@ const BillsManagement = () => {
                               >
                                  Cancel
                               </button>
-                              <button
-                                 type="submit"
-                                 disabled={isLoading}
-                                 className="inline-flex items-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-blue-300"
-                              >
-                                 {isLoading ? (
-                                    currentBill.id ? 'Updating Bill...' : 'Creating Bill...'
-                                 ) : (
-                                    currentBill.id ? 'Update Bill' : 'Create Bill'
-                                 )}
-                              </button>
+
+                              {currentBill.status !== "Paid" && 
+                                 <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="inline-flex items-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-blue-300"
+                                 >
+                                    {isLoading ? (
+                                       currentBill.id ? 'Updating Bill...' : 'Creating Bill...'
+                                    ) : (
+                                       currentBill.id ? 'Update Bill' : 'Create Bill'
+                                    )}
+                                 </button>
+                              }
                            </div>
                         </form>
                      </div>

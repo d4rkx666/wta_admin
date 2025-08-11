@@ -26,6 +26,8 @@ export async function POST(req: Request) {
       bill.dueDate = new Date(bill.dueDate.toString());
       bill.status = bill.balance <= 0.01 ? "Paid" : "Pending"
 
+      console.log(bill)
+
       const payments:Payment[] = tenantsAndPayments.map(split=>{
         const hasPaid = split.payment.amount_payment === split.payment.amount_paid;
 

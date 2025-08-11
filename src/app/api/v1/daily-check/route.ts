@@ -81,7 +81,7 @@ async function updateRoomsTaken() {
 
   const roomsToUpdate: Room[] = []
 
-  contracts.filter(c=>c.status === "Active").map(contract => {
+  contracts.filter(c=>c.status === "Active" || "Permanent").map(contract => {
     if (new Date() >= new Date((contract.lease_end as Timestamp).toDate())) { //check if lease has ended
       const roomUpdate = rooms.find(room => contract.room_id === room.id); // find room
       if (roomUpdate) {

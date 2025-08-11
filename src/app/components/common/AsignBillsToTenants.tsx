@@ -91,6 +91,9 @@ export default function AsignBills({ bill, tenantSplits, tenantsSplitSaved, cont
                   }
                }
                const currentContract = contracts.find(c=>c.id === split.tenant.current_contract_id);
+               const lease_start = currentContract?.lease_start instanceof Timestamp ? (currentContract?.lease_start as Timestamp).toDate().toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' }) : new Date(currentContract?.lease_start as Date).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' });
+               const lease_end = currentContract?.lease_end instanceof Timestamp ? (currentContract?.lease_end as Timestamp).toDate().toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' }) : new Date(currentContract?.lease_end as Date).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' });
+               
                return (
                <div key={split.tenant.id} className="flex items-center">
                   <div className="w-1/3 text-sm text-gray-700" title={split.tenant.name}>
@@ -98,8 +101,8 @@ export default function AsignBills({ bill, tenantSplits, tenantsSplitSaved, cont
 
                      <div className="text-sm text-gray-700">
                         <div className="flex flex-col text-xs">
-                           <span>From {currentContract?.lease_start && new Date(currentContract.lease_start as Date).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
-                           <span>To {currentContract?.lease_end && new Date(currentContract.lease_end as Date).toLocaleDateString('en-GB', { month: 'numeric', day: 'numeric', year: 'numeric' })}</span>
+                           <span>From {lease_start}</span>
+                           <span>To {lease_end}</span>
                         </div>
                      </div>
                   </div>
@@ -137,16 +140,19 @@ export default function AsignBills({ bill, tenantSplits, tenantsSplitSaved, cont
             )})}
          </div>
 
+         {diff !== 0  &&
+            <div className="mt-3 pt-3 border-t flex justify-between">
+               <span className="text-sm font-medium text-gray-700">Landlord is paying:</span>
+               <span className="text-sm font-medium text-red-500">
+                  ${diff.toFixed(2)}
+               </span>
+            </div>
+         }
+
          <div className="mt-3 pt-3 border-t flex justify-between">
             <span className="text-sm font-medium text-gray-700">Total:</span>
             <span className="text-sm font-medium">
                ${total.toFixed(2)}
-
-               {diff !== 0  &&
-                  <span className="ml-2 text-red-500">
-                     (Diff: ${diff.toFixed(2)})
-                  </span>
-               }
             </span>
          </div>
       </div>

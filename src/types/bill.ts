@@ -7,6 +7,7 @@ export type Bill = {
    type: string;
    amount: number;
    balance: number;
+   admin_payment: number;
    issuedDate: Timestamp | Date;
    dueDate: Timestamp | Date;
    notes: string;
