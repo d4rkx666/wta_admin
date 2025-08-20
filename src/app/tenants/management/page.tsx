@@ -433,6 +433,7 @@ const TenantManagement = () => {
                      setContractFile(null);
                      setIdFile(null);
                      setContractPreview(null);
+                     setCurrentContract({});
                      setIdPreview(null);
                      setShowCreateModal(true);
                   }}

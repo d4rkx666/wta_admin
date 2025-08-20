@@ -26,7 +26,13 @@ export async function deleteMultiCloudinaryFiles(file_id:string[]):Promise<strin
       resource_type: "raw"
   });
 
-  console.log(result)
+  const cleanPath = file_id[0].replace(/\/+$/, '').split("/")[0];
+  console.log("trying to delete folder: ", cleanPath)
+  const resultFolder = await cloudinary.api.delete_folder(cleanPath);
+
+  console.log("delete result", result)
+  console.log("delete folder", resultFolder)
+
   return result;
 }
 
