@@ -138,7 +138,7 @@ export async function POST(req: Request) {
         }
       }
       if(idFile){
-        const public_id = await insertFile(idFile, tenant.current_contract_id, false);
+        const public_id = await insertFile(idFile, tenant.current_contract_id, true);
         if(public_id){
           tenant.identification_file_id = public_id; // insert the public_id
         }
@@ -188,7 +188,7 @@ export async function POST(req: Request) {
         if(contract.contract_file_id){
           await updateFile(contractFile, contract.contract_file_id, true)
         }else{
-          const public_id = await insertFile(contractFile, contract.id, true)
+          const public_id = await insertFile(contractFile, tenant.current_contract_id, true)
 
           if(public_id){
             contractToUpdate.contract_file_id = public_id; // insert the public_id
@@ -197,9 +197,9 @@ export async function POST(req: Request) {
       }
       if(idFile){
         if(tenant.identification_file_id){
-          await updateFile(idFile, tenant.identification_file_id, false)
+          await updateFile(idFile, tenant.identification_file_id, true)
         }else{
-          const public_id = await insertFile(idFile, tenant.id, false)
+          const public_id = await insertFile(idFile, tenant.current_contract_id, true)
 
           if(public_id){
             tenantToUpdate.identification_file_id = public_id; // insert the public_id

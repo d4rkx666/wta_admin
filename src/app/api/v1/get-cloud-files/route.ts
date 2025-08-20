@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     if(tenant.identification_file_id){
-      idUrl = await getCloudinaryUrl(tenant.identification_file_id, false);
+      idUrl = await getCloudinaryUrl(tenant.identification_file_id, true);
     }
 
     return NextResponse.json({ success:true, contractUrl, idUrl });

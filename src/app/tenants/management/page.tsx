@@ -3,7 +3,7 @@
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useLiveProperties } from '@/hooks/useLiveProperties';
 import Loader from '@/app/components/common/Loader';
-import { XMarkIcon, UserIcon, EnvelopeIcon, PhoneIcon, CurrencyDollarIcon, PhotoIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UserIcon, EnvelopeIcon, PhoneIcon, CurrencyDollarIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { useNotification } from '@/app/context/NotificationContext';
 import { Tenant } from '@/types/tenant';
 import { set_tenant } from '@/hooks/setTenant';
@@ -19,7 +19,6 @@ import { get_tenant_files } from '@/hooks/getTenantFiles';
 import { Timestamp } from 'firebase/firestore';
 import { Contract } from '@/types/contract';
 import ContractModal from '../components/ContractModal';
-import Image from 'next/image';
 import { Property } from '@/types/property';
 import { set_contract } from '@/hooks/setContract';
 import Link from 'next/link';
@@ -86,7 +85,7 @@ const TenantManagement = () => {
          }
       } else {
          setIdFile(file);
-         if (file.type.startsWith('image/')) {
+         if (file.type === 'application/pdf') {
             setIdPreview(URL.createObjectURL(file));
          }
       }
@@ -159,11 +158,11 @@ const TenantManagement = () => {
    };
 
    const handleCreateFirstContract = () => {
+      // Validates first form
       if (!currentTenant.name || currentTenant.name === "" || !currentTenant.email || currentTenant.email === "") {
          showNotification("error", "Please fill the form");
          return;
       }
-      console.log(hasCouple, currentTenant.couple_name)
       if (hasCouple && (!currentTenant.couple_name || currentTenant.couple_name === "")) {
          showNotification("error", "Couple's name must have a value");
          return;
@@ -741,13 +740,14 @@ const TenantManagement = () => {
 
                               <div>
                                  <label htmlFor="idFile" className="block text-sm font-medium text-gray-700 mb-1">
-                                    ID/Passport (Image only: JPEG / PNG)
+                                    ID/Passport (PDF)
                                  </label>
                                  <label className='text-xs text-gray-500'>Optional</label>
+
                                  <div className="flex items-center">
                                     <label className="flex flex-col items-center justify-center w-full p-2 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                                        <div className="flex flex-col items-center justify-center pt-2 pb-3">
-                                          <PhotoIcon className="h-8 w-8 text-gray-400" />
+                                          <DocumentTextIcon className="h-8 w-8 text-gray-400" />
                                           <p className="text-xs text-gray-500 mt-2">
                                              {idFile ? idFile.name : 'Click to upload ID/Passport'}
                                           </p>
@@ -756,22 +756,23 @@ const TenantManagement = () => {
                                           id="idFile"
                                           name="idFile"
                                           type="file"
-                                          accept="image/*,.pdf"
+                                          accept="application/pdf"
                                           className="hidden"
                                           onChange={(e) => handleFileChange(e, 'id')}
                                        />
                                     </label>
                                  </div>
+
+
                                  {idPreview &&
-                                    <div className='mt-5 text-center flex flex-col items-center'>
+                                    <div className='mt-5 text-center'>
                                        <span className='mb-1'>Preview</span>
-                                       <Image
+                                       <iframe
                                           key={idPreview}
-                                          alt='id_file'
                                           src={idPreview.slice(0, 4) === "blob" ? idPreview : idPreview + "?" + new Date().getTime()}
-                                          width={200}
-                                          height={50}
-                                       />
+                                          style={{ border: 'none', width: "100%" }}
+                                          title="PDF Viewer"
+                                       ></iframe>
                                     </div>
                                  }
 
@@ -1009,7 +1010,7 @@ const TenantManagement = () => {
          {showCreateContractModal &&
             <ContractModal
                handleCloseModal={handleCloseModal}
-               handleSubmit={currentContract.id ? handleCreateContract : handleCreateNewTenant}
+               handleSubmit={currentContract.id && currentContract.id !== "" ? handleCreateContract : handleCreateNewTenant}
                isLoading={isLoading}
                isEditing={currentTenant.id ? true : false}
                currentRoom={currentRoom}

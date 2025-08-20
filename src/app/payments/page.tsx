@@ -13,6 +13,7 @@ import { useNotification } from '../context/NotificationContext';
 import { get_proof_image } from '@/hooks/getProofImage';
 import Image from 'next/image';
 import { useLiveContracts } from '@/hooks/useLiveContracts';
+import { Timestamp } from 'firebase-admin/firestore';
 
 const PaymentsDashboard = () => {
    const { showNotification } = useNotification()
@@ -39,7 +40,15 @@ const PaymentsDashboard = () => {
       if (paymentTypeFilter !== 'all' && payment.type !== paymentTypeFilter) return false;
 
       return true;
-   });
+   }).sort((a, b) => {
+         
+         if(a.dueDate && b.dueDate){
+            const dateA = (a.dueDate as Timestamp).toDate();
+            const dateB = (b.dueDate as Timestamp).toDate();
+            return dateA.getTime() - dateB.getTime();
+         }
+         return 0;
+       });
 
    // Calculate totals
    const totalPending = filteredPayments.filter(p => p.status === 'Pending').reduce((sum, p) => sum + p.amount_payment, 0);

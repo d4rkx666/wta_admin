@@ -22,7 +22,8 @@ export async function deleteMultiCloudinaryFiles(file_id:string[]):Promise<strin
   console.log("deleting files")
   
   const result = await cloudinary.api.delete_resources(file_id, {
-      type: 'private'
+      type: 'private',
+      resource_type: "raw"
   });
 
   console.log(result)

@@ -157,7 +157,7 @@ export default function ContractForm({isEditing, currentRoom, properties, handle
          }
 
          {(!isEditing && pastRents) && pastRents.map((rent, i) => {
-            const month = new Date(rent.dueDate as Date).toLocaleDateString("en-US", { month: "long" });
+            const month = new Date(rent.dueDate as Date).toLocaleDateString("en-US", { month: "long", year: "numeric" });
             return (
                <div key={i}>
                   <div>
