@@ -5,7 +5,7 @@ import { Room } from "@/types/room";
 import { CalendarIcon, CurrencyDollarIcon, DocumentTextIcon, HomeIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { ChangeEvent, Dispatch, FormEvent, SetStateAction } from "react";
 
-export default function ContractModal({handleCloseModal, handleSubmit, isLoading, currentRoom, properties, handleShowRooms, contract, setContract, setPriceRoom, currentRooms, handlePreviousRents, handleFutureRents, depositPayment, setDepositPayment, pastRents, handleEditPastRentAmount, contractFile, handleFileChange, contractPreview}:{handleCloseModal:()=>void, handleSubmit: (e: FormEvent<HTMLFormElement>)=>void, isLoading:boolean, isEditing: boolean, currentRoom: Partial<Room>, properties: Property[], handleShowRooms: (id_property: string) => Promise<void>, contract: Partial<Contract>, setContract:Dispatch<SetStateAction<Partial<Contract>>>, setPriceRoom: (idRoom: string) => void, currentRooms: Room[], handlePreviousRents: (lease_start: Date) => void, handleFutureRents: (lease_end: Date) => void, depositPayment:Partial<Payment>, setDepositPayment:Dispatch<SetStateAction<Partial<Payment>>>, pastRents: Partial<Payment>[], handleEditPastRentAmount: (value: number, index: number) => void, contractFile:File | null,  handleFileChange: (e: ChangeEvent<HTMLInputElement>, type: "contract" | "id") => void, contractPreview: string | null, idFile: File | null, idPreview:string | null}) {
+export default function ContractModal({handleCloseModal, handleSubmit, isLoading, currentRoom, properties, handleShowRooms, contract, setContract, setPriceRoom, currentRooms, handlePreviousRents, handleFutureRents, depositPayment, setDepositPayment, pastRents, handleEditPastRentAmount, contractFile, handleFileChange, contractPreview}:{handleCloseModal:()=>void, handleSubmit: (e: FormEvent<HTMLFormElement>)=>void, isLoading:boolean, isEditing: boolean, currentRoom: Partial<Room>, properties: Property[], handleShowRooms: (id_property: string) => Promise<void>, contract: Partial<Contract>, setContract:Dispatch<SetStateAction<Partial<Contract>>>, setPriceRoom: (idRoom: string) => void, currentRooms: Room[], handlePreviousRents: (lease_start: Date, lease_end: Date) => void, handleFutureRents: (lease_end: Date) => void, depositPayment:Partial<Payment>, setDepositPayment:Dispatch<SetStateAction<Partial<Payment>>>, pastRents: Partial<Payment>[], handleEditPastRentAmount: (value: number, index: number) => void, contractFile:File | null,  handleFileChange: (e: ChangeEvent<HTMLInputElement>, type: "contract" | "id") => void, contractPreview: string | null, idFile: File | null, idPreview:string | null}) {
    return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
          <div
@@ -107,7 +107,7 @@ export default function ContractModal({handleCloseModal, handleSubmit, isLoading
                                        onChange={(e) => {
                                           const d = (e.target.value as string).split("-")
                                           setContract({ ...contract, lease_start: new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2])) })
-                                          handlePreviousRents(new Date(e.target.value));
+                                          handlePreviousRents(new Date(e.target.value), new Date(contract.lease_end ? contract.lease_end as Date : Date.now()));
                                        }}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border disabled:bg-gray-200"
                                     />
@@ -133,6 +133,7 @@ export default function ContractModal({handleCloseModal, handleSubmit, isLoading
                                        onChange={(e) => {
                                           const d = (e.target.value as string).split("-")
                                           setContract({ ...contract, lease_end: new Date(Number(d[0]), Number(d[1]) - 1, Number(d[2])) });
+                                          handlePreviousRents(new Date(contract.lease_start as Date), new Date(e.target.value));
                                           handleFutureRents(new Date(e.target.value));
                                        }}
                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border disabled:bg-gray-200"

@@ -333,13 +333,14 @@ const TenantManagement = () => {
       setShowAdditionalFeeModal(true);
    }
 
-   const handlePreviousRents = (lease_start: Date) => {
+   const handlePreviousRents = (lease_start: Date, lease_end: Date) => {
       const rents: Partial<Payment>[] = []; // rents
       let currentYear = new Date(lease_start).getUTCFullYear();
       let currentMonth = new Date(lease_start).getUTCMonth();  // skips current month
 
-      const endYear = new Date().getUTCFullYear();
-      const endMonth = new Date().getUTCMonth();
+
+      const endYear = new Date(lease_end.getTime() > Date.now() ? Date.now() : lease_end).getUTCFullYear();
+      const endMonth = new Date(lease_end.getTime() > Date.now() ? Date.now() : lease_end).getUTCMonth();
 
       while (currentYear < endYear || (currentYear === endYear && currentMonth <= endMonth)) {
 
