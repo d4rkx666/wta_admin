@@ -41,14 +41,10 @@ const PaymentsDashboard = () => {
 
       return true;
    }).sort((a, b) => {
-         
-         if(a.dueDate && b.dueDate){
-            const dateA = (a.dueDate as Timestamp).toDate();
-            const dateB = (b.dueDate as Timestamp).toDate();
-            return dateA.getTime() - dateB.getTime();
-         }
-         return 0;
-       });
+      const dateA = a.dueDate ? (a.dueDate as Timestamp).toDate().getTime() : Infinity;
+      const dateB = b.dueDate ? (b.dueDate as Timestamp).toDate().getTime() : Infinity;
+      return dateA - dateB;
+   });
 
    // Calculate totals
    const totalPending = filteredPayments.filter(p => p.status === 'Pending').reduce((sum, p) => sum + p.amount_payment, 0);

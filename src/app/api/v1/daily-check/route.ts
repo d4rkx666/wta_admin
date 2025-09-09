@@ -46,7 +46,7 @@ async function setCurrentPayments(){
           (payment month = 5, today month = 4)
           if (5 - 1 ) is equal to 4
       */
-      if((paymentMonth - 1) === currentMonth){
+      if((paymentMonth - 1) === currentMonth && payment.status === "Pending"){
         const p:Partial<Payment> = {
           id: payment.id,
           is_current: true,
@@ -115,7 +115,13 @@ async function setPenalties(){
   const penalties = payments.filter(payment=> {
     if(payment.dueDate){
       const today = new Date();
-      if(payment.dueDate < today && payment.type === "rent" && payment.is_current && payment.status === "Pending"){
+      /* If the pending rent due date is less than today, it means the rent has expired.
+      // Example:
+      //    - Payment Due date: 1/8/2025
+      //    - Today: 13/8/2025
+      //     1/8/2025 is less than 13/8/2025 > yes
+      */
+      if(payment.dueDate < today && payment.type === "rent" && payment.status === "Pending"){
         return true;
       }
     }
