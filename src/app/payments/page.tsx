@@ -14,16 +14,20 @@ import { get_proof_image } from '@/hooks/getProofImage';
 import Image from 'next/image';
 import { useLiveContracts } from '@/hooks/useLiveContracts';
 import { Timestamp } from 'firebase-admin/firestore';
+import DiscountModal from './components/DiscountModal';
+import { set_discount } from '@/hooks/setDiscount';
 
 const PaymentsDashboard = () => {
    const { showNotification } = useNotification()
    const [activeTab, setActiveTab] = useState<PaymentStatus | 'all'>("Marked");
    const [paymentTypeFilter, setPaymentTypeFilter] = useState<PaymentType | 'all'>('all');
    const [showMarkModal, setShowMarkModal] = useState(false);
+   const [showDiscountModal, setShowDiscountModal] = useState(false);
    const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
    const [markPaymentAmount, setMarkPaymentAmount] = useState(0);
    const [imageProof, setImageProof] = useState<string | null>(null);
    const [showImagePreview, setShowImagePreview] = useState(false);
+   const [isLoading, setIsLoading] = useState(false);
 
    const { data: payments, loading: loadingPayments } = useLivePayments();
    const { data: tenants, loading: loadingTenants } = useLiveTenants();
@@ -70,9 +74,34 @@ const PaymentsDashboard = () => {
       }
    };
 
+   const addDiscount = async() => {
+      if (!selectedPayment) return;
+      if(!selectedPayment.amount_discount || selectedPayment.amount_discount <= 0){
+         showNotification("error", "Please select a valid discount.");
+         return;
+      }
+      
+      setIsLoading(true);
+      try {
+         const data = await set_discount(selectedPayment);
+         const resp = await data.json();
+         if (resp.success) {
+            showNotification("success", "Discount has been added successfully.");
+            setShowDiscountModal(false);
+         } else {
+            showNotification("error", "Something went wrong... Please try again later.");
+         }
+      } catch {
+
+      } finally {
+         setSelectedPayment(null);
+         setIsLoading(false);
+      }
+   }
+
    const handleConfirmPayment = async (payment: Payment) => {
       setSelectedPayment(payment);
-      setMarkPaymentAmount(payment.amount_payment);
+      setMarkPaymentAmount(payment.amount_payment - (payment.amount_discount ? payment.amount_discount : 0));
       setShowMarkModal(true);
 
       if (payment.proof_img_id) {
@@ -85,6 +114,11 @@ const PaymentsDashboard = () => {
             }
          }
       }
+   }
+
+   const handleDiscount = async (payment: Payment) => {
+      setSelectedPayment(payment);
+      setShowDiscountModal(true)
    }
 
 
@@ -203,6 +237,9 @@ const PaymentsDashboard = () => {
                            Amount
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                           Amount After Discount
+                        </th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                            Due Date
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -258,6 +295,16 @@ const PaymentsDashboard = () => {
                                  </td>
                                  <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="text-gray-900">
+                                       {payment.amount_discount &&
+                                          <>
+                                             <span>${payment.amount_payment - payment.amount_discount}</span>
+                                             <div className="text-xs text-green-500">-${payment.amount_discount}</div>
+                                          </>
+                                       }
+                                    </div>
+                                 </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-gray-900">
                                        {formatDate(payment.dueDate)}
                                     </div>
                                  </td>
@@ -270,7 +317,7 @@ const PaymentsDashboard = () => {
                                        }`}>
                                        {payment.status}
                                        {payment.status === 'Marked' && (
-                                          <span className="ml-1">(${payment.amount_paid.toFixed(2)})</span>
+                                          <span className="ml-1">(${(payment.amount_paid - (payment.amount_discount ? payment.amount_discount : 0)).toFixed(2)})</span>
                                        )}
                                     </span>
                                  </td>
@@ -281,11 +328,20 @@ const PaymentsDashboard = () => {
                                              onClick={() => handleConfirmPayment(payment)}
                                              className="bg-green-400 rounded-full px-2 py-1 text-white hover:green-blue-900 hover:bg-green-500"
                                           >
-                                             Confirm payment
+                                             Preview payment
                                           </button>
                                        )}
                                        {payment.status === 'Paid' && (
                                           <span className="text-gray-400">Verified</span>
+                                       )}
+                                       
+                                       {payment.status === 'Pending' && payment.type === "rent" && (
+                                          <button
+                                             onClick={()=>handleDiscount(payment)}
+                                             className="bg-green-400 rounded-full px-2 py-1 text-white hover:green-blue-900 hover:bg-green-500"
+                                          >
+                                             Add discount
+                                          </button>
                                        )}
                                     </div>
                                  </td>
@@ -328,7 +384,7 @@ const PaymentsDashboard = () => {
                         <div className="space-y-4">
                            <div>
                               <p className="text-sm text-gray-600 mb-2">
-                                 You&apos;re marking a payment for <span className="font-semibold">${selectedPayment.amount_payment.toFixed(2)}</span> as received.
+                                 You&apos;re marking a payment for <span className="font-semibold">${(selectedPayment.amount_payment - (selectedPayment.amount_discount ? selectedPayment.amount_discount : 0)).toFixed(2)}</span> as received.
                               </p>
                            </div>
 
@@ -346,7 +402,7 @@ const PaymentsDashboard = () => {
                                  required
                               />
                               <p className="text-xs text-gray-500 mt-1">
-                                 Full amount: ${selectedPayment.amount_payment.toFixed(2)}
+                                 Full amount: ${(selectedPayment.amount_payment - (selectedPayment.amount_discount ? selectedPayment.amount_discount : 0)).toFixed(2)}
                               </p>
                            </div>
 
@@ -415,6 +471,16 @@ const PaymentsDashboard = () => {
                )}
             </>
          )}
+
+         {showDiscountModal && 
+            <DiscountModal
+               setShowDiscountModal = {setShowDiscountModal}
+               addDiscount = {addDiscount}
+               isLoading = {isLoading}
+               payment = {selectedPayment}
+               setPayment = {setSelectedPayment}
+            />
+         }
       </div>
    );
 };

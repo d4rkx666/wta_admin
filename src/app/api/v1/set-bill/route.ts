@@ -26,9 +26,7 @@ export async function POST(req: Request) {
       bill.dueDate = new Date(bill.dueDate.toString());
       bill.status = bill.balance <= 0.01 ? "Paid" : "Pending"
 
-      console.log(bill)
-
-      const payments:Payment[] = tenantsAndPayments.map(split=>{
+      const payments:Payment[] = tenantsAndPayments.filter(split => split.payment.amount_payment && split.payment.amount_payment > 0).map(split=>{
         const hasPaid = split.payment.amount_payment === split.payment.amount_paid;
 
         if(hasPaid){
@@ -93,7 +91,7 @@ export async function POST(req: Request) {
       }
 
       // Inserting new ones
-      const payments:Payment[] = tenantsAndPayments.map(split=>{
+      const payments:Payment[] = tenantsAndPayments.filter(split => split.payment.amount_payment && split.payment.amount_payment > 0).map(split=>{
         const hasPaid = split.payment.amount_payment === split.payment.amount_paid;
 
         if(hasPaid){
@@ -122,7 +120,7 @@ export async function POST(req: Request) {
 
       // update multiple documents
       console.log(dataToInsert);
-      //await firestoreService.setMultipleDocuments(dataToInsert);
+      await firestoreService.setMultipleDocuments(dataToInsert);
     }
     return NextResponse.json({ success: true });
   } catch (error) {
