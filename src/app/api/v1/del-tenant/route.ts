@@ -92,7 +92,7 @@ export async function POST(req: Request) {
 
     // Delete files from cloudinary
     if(filesToDelete.length > 0){
-      await deleteMultiCloudinaryFiles(filesToDelete)
+      await deleteMultiCloudinaryFiles(tenant.id)
     }
 
     return NextResponse.json({ success: true });

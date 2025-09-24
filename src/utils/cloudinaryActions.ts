@@ -11,24 +11,21 @@ export async function getCloudinaryUrl(file_id:string, isPdf: boolean):Promise<s
       secure: true,
       sign_url: true,
       type: 'private',
-      expires_at: Math.floor(Date.now() / 1000) + 3600, // 1-hour expiry
       resource_type: isPdf ? 'raw' : "image",
    });
-
    return url;
 }
 
-export async function deleteMultiCloudinaryFiles(file_id:string[]):Promise<string>{
+export async function deleteMultiCloudinaryFiles(main_folder:string):Promise<string>{
   console.log("deleting files")
-  
-  const result = await cloudinary.api.delete_resources(file_id, {
-      type: 'private',
-      resource_type: "raw"
+
+  const result = await cloudinary.api.delete_resources_by_prefix(`${main_folder}/`, {
+    type: 'private',
+    resource_type: 'raw'
   });
 
-  const cleanPath = file_id[0].replace(/\/+$/, '').split("/")[0];
-  console.log("trying to delete folder: ", cleanPath)
-  const resultFolder = await cloudinary.api.delete_folder(cleanPath);
+  console.log("trying to delete folder: ", main_folder)
+  const resultFolder = await cloudinary.api.delete_folder(main_folder);
 
   console.log("delete result", result)
   console.log("delete folder", resultFolder)
@@ -73,6 +70,36 @@ try {
     console.log(error);
     return null;
   }
+}
+
+export async function getSignatureFile(folder:string, public_id:string | undefined, id_model:string){
+  
+  const timestamp = Math.round(new Date().getTime() / 1000);
+
+  const setup = {
+    timestamp: timestamp,
+    folder: folder,
+    type: 'private',
+    invalidate: true
+  } as any; // eslint-disable-line
+
+  if(public_id){
+    setup.public_id = public_id.split("/")[public_id.split("/").length - 1];
+  }
+
+  const signature = cloudinary.utils.api_sign_request(
+    setup,
+    process.env.CLOUDINARY_API_SECRET as string
+  );
+
+  return {
+    signature,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    timestamp,
+    folder: folder,
+    id: id_model
+  };
 }
 
 export async function updateFile(file: File, publicId: string, isPdf: boolean) {

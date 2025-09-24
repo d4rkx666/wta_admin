@@ -24,6 +24,7 @@ import { set_contract } from '@/hooks/setContract';
 import Link from 'next/link';
 import AdditionalFeeModal from '../components/AdditionalFeeModal';
 import { set_additional_fee } from '@/hooks/setAdditionalFee';
+import { set_contract_file, set_id_file, upload_cloudinary } from '@/hooks/setFileCloudinary';
 
 type pastContractFiles = {
    id:string,
@@ -132,20 +133,35 @@ const TenantManagement = () => {
          formData.append('futureRents', JSON.stringify(futureRents));
 
          if (contractFile) {
-            formData.append('contractFile', contractFile);
+            formData.append('contractFile', "true");
          }
          if (idFile) {
-            formData.append('idFile', idFile);
+            formData.append('idFile', "true");
          }
 
          const response = await set_tenant(formData);
 
          const data = await response.json();
          if (data.success) {
-            showNotification('success', 'Tenant form submitted successfully!');
-            handleCloseModal();
+            // Upload pdf
+            let error = false;
+            if(data.signatureFiles.contract.signature){
+               if(!await uploadFile(data.signatureFiles.contract, contractFile as File, currentContract.contract_file_id, "contract")){
+                  error = true;
+               }
+            }
 
+            if(data.signatureFiles.id.signature){
+               if(!await uploadFile(data.signatureFiles.id, idFile as File, tenantToInsert.identification_file_id, "id")){
+                  error = true;
+               }
+            }
             
+            if(!error){
+               showNotification('success', 'Tenant form submitted successfully!');
+            }
+
+            handleCloseModal();
             setContractFile(null);
             setIdFile(null)
             setIsLoading(false);
@@ -156,6 +172,56 @@ const TenantManagement = () => {
          console.log(err);
       }
    };
+
+   // eslint-disable-next-line
+   const uploadFile = async(data:any, fileUpload:File, public_id:string | undefined, type:"id" | "contract")=>{
+      let success = true;
+      const formData2 = new FormData();
+      formData2.append('file', fileUpload);
+      formData2.append('folder', data.folder);
+      formData2.append('api_key', data.apiKey);
+      formData2.append('timestamp', data.timestamp);
+      formData2.append('type', "private");
+      formData2.append('invalidate', "true");
+      formData2.append('signature', data.signature);
+      if(public_id){
+         formData2.append('public_id', public_id.split("/")[public_id.split("/").length - 1]);
+      }
+      
+      const new_public_id = await upload_cloudinary(formData2, data.cloudName)
+      if(new_public_id){
+         
+         if(type === "contract"){
+            const newFileContract: Partial<Contract> = {
+               id: data.id,
+               contract_file_id: new_public_id
+            }
+            const sFile = await set_contract_file(newFileContract);
+            const resp = await sFile.json();
+            if(!resp.success){
+               showNotification('error', 'Tenant updated and contract file uploaded successfully with error updating the contract image id.');
+               success = false;
+            }
+         }else if(type === "id"){
+            const newFileId: Partial<Tenant> = {
+               id: data.id,
+               identification_file_id: new_public_id
+            }
+            const sFile = await set_id_file(newFileId);
+            const resp = await sFile.json();
+            if(!resp.success){
+               showNotification('error', 'Tenant updated and ID file uploaded successfully with error updating the contract image id.');
+               success = false;
+            }
+         }
+         
+      }else{
+         showNotification('error', 'Tenant updated successfully but file could not be uploaded.');
+         success = false;
+      }
+
+      return success;
+   }
 
    const handleCreateFirstContract = () => {
       // Validates first form
@@ -742,7 +808,7 @@ const TenantManagement = () => {
 
                               <div>
                                  <label htmlFor="idFile" className="block text-sm font-medium text-gray-700 mb-1">
-                                    ID/Passport (PDF)
+                                    ID/Passport (PDF max 10MB)
                                  </label>
                                  <label className='text-xs text-gray-500'>Optional</label>
 
@@ -751,7 +817,7 @@ const TenantManagement = () => {
                                        <div className="flex flex-col items-center justify-center pt-2 pb-3">
                                           <DocumentTextIcon className="h-8 w-8 text-gray-400" />
                                           <p className="text-xs text-gray-500 mt-2">
-                                             {idFile ? idFile.name : 'Click to upload ID/Passport'}
+                                             {idFile ? `${idFile.name} (${(idFile.size / 1000 ).toFixed(0)} KB)` : 'Click to upload ID/Passport'}
                                           </p>
                                        </div>
                                        <input
@@ -768,7 +834,6 @@ const TenantManagement = () => {
 
                                  {idPreview &&
                                     <div className='mt-5 text-center'>
-                                       <span className='mb-1'>Preview</span>
                                        <iframe
                                           key={idPreview}
                                           src={idPreview.slice(0, 4) === "blob" ? idPreview : idPreview + "?" + new Date().getTime()}
@@ -835,7 +900,7 @@ const TenantManagement = () => {
                                        <div className="grid grid-cols-1 gap-6">
                                           <div>
                                              <label htmlFor="contractFile" className="block text-sm font-medium text-gray-700 mb-1">
-                                                Lease Contract (PDF)
+                                                Lease Contract (PDF max 10MB)
                                              </label>
                                              <label className='text-xs text-gray-500'>Optional</label>
                                              <div className="flex items-center">
@@ -843,7 +908,7 @@ const TenantManagement = () => {
                                                    <div className="flex flex-col items-center justify-center pt-2 pb-3">
                                                       <DocumentTextIcon className="h-8 w-8 text-gray-400" />
                                                       <p className="text-xs text-gray-500 mt-2">
-                                                         {contractFile ? contractFile.name : 'Click to upload contract'}
+                                                         {contractFile ? `${contractFile.name} (${(contractFile.size / 1000 ).toFixed(0)} KB)` : 'Click to upload contract'}
                                                       </p>
                                                    </div>
                                                    <input
@@ -860,7 +925,7 @@ const TenantManagement = () => {
                                                 <div className='mt-5 text-center w-full'>
                                                    <Link href={contractPreview.slice(0, 4) === "blob" ? contractPreview : contractPreview + "?" + new Date().getTime()} target='_blank'><span className='mb-1'>Preview</span></Link>
                                                    <iframe
-                                                      key={contractPreview}
+                                                      key={contractPreview + "?" + new Date().getTime()}
                                                       src={contractPreview.slice(0, 4) === "blob" ? contractPreview : contractPreview + "?" + new Date().getTime()}
                                                       style={{ border: 'none', width: "100%" }}
                                                       title="PDF Viewer"

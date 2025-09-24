@@ -200,14 +200,14 @@ export default function ContractModal({handleCloseModal, handleSubmit, isLoading
                         <div className="grid grid-cols-1 gap-6">
                            <div>
                               <label htmlFor="contractFile" className="block text-sm font-medium text-gray-700 mb-1">
-                                 Lease Contract (PDF)
+                                 Lease Contract (PDF max 10MB)
                               </label>
                               <div className="flex items-center">
                                  <label className="flex flex-col items-center justify-center w-full p-2 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                                     <div className="flex flex-col items-center justify-center pt-2 pb-3">
                                        <DocumentTextIcon className="h-8 w-8 text-gray-400" />
                                        <p className="text-xs text-gray-500 mt-2">
-                                          {contractFile ? contractFile.name : 'Click to upload contract'}
+                                          {contractFile ? `${contractFile.name} (${(contractFile.size / 1000 ).toFixed(0)} KB)` : 'Click to upload contract'}
                                        </p>
                                     </div>
                                     <input

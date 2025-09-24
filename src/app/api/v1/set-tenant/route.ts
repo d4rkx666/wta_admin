@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { User } from '@/types/user';
 import { getSession } from '@/lib/auth';
 import { Contract } from '@/types/contract';
-import { insertFile, updateFile } from '@/utils/cloudinaryActions';
+import { getSignatureFile } from '@/utils/cloudinaryActions';
 
 export async function POST(req: Request) {
   const formData = await req.formData();
@@ -31,6 +31,8 @@ export async function POST(req: Request) {
   
   let userIdRollback = "";
   try {
+    
+    const signatureFiles = {contract: {}, id: {}};
 
     if (!tenant.id) { // New tenant
 
@@ -132,16 +134,10 @@ export async function POST(req: Request) {
       
       // INSERT FILES IF EXISTS
       if(contractFile){
-        const public_id = await insertFile(contractFile, tenant.current_contract_id, true)
-        if(public_id){
-          contract.contract_file_id = public_id; // insert the public_id
-        }
+        signatureFiles.contract = await getSignatureFile(tenant.id + "/" + tenant.current_contract_id, currentContract.contract_file_id, contract.id);
       }
       if(idFile){
-        const public_id = await insertFile(idFile, tenant.current_contract_id, true);
-        if(public_id){
-          tenant.identification_file_id = public_id; // insert the public_id
-        }
+        signatureFiles.id = await getSignatureFile(tenant.id, tenant.identification_file_id, tenant.id);
       }
 
       const dataToInsert: MultipleDoc[] = [
@@ -185,33 +181,17 @@ export async function POST(req: Request) {
       const contractToUpdate: Partial<Contract> = {id: currentContract.id}
 
       if(contractFile){
-        if(contract.contract_file_id){
-          await updateFile(contractFile, contract.contract_file_id, true)
-        }else{
-          const public_id = await insertFile(contractFile, tenant.current_contract_id, true)
-
-          if(public_id){
-            contractToUpdate.contract_file_id = public_id; // insert the public_id
-          }
-        }
+        signatureFiles.contract = await getSignatureFile(tenant.id + "/" + tenant.current_contract_id, currentContract.contract_file_id, tenant.current_contract_id);
       }
       if(idFile){
-        if(tenant.identification_file_id){
-          await updateFile(idFile, tenant.identification_file_id, true)
-        }else{
-          const public_id = await insertFile(idFile, tenant.current_contract_id, true)
-
-          if(public_id){
-            tenantToUpdate.identification_file_id = public_id; // insert the public_id
-          }
-        }
+        signatureFiles.id = await getSignatureFile(tenant.id, tenant.identification_file_id, tenant.id);
       }
       await firestoreService.setDocument("tenants", tenant.id, tenantToUpdate);
       await firestoreService.setDocument("contracts", currentContract.id, contractToUpdate);
     }
 
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, signatureFiles});
   } catch (error) {
     console.error(error);
     if(userIdRollback !== ""){
