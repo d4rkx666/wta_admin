@@ -5,7 +5,52 @@ import { Room } from "@/types/room";
 import { CalendarIcon, CurrencyDollarIcon, DocumentTextIcon, HomeIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { ChangeEvent, Dispatch, FormEvent, SetStateAction } from "react";
 
-export default function ContractModal({handleCloseModal, handleSubmit, isLoading, currentRoom, properties, handleShowRooms, contract, setContract, setPriceRoom, currentRooms, handlePreviousRents, handleFutureRents, depositPayment, setDepositPayment, pastRents, handleEditPastRentAmount, contractFile, handleFileChange, contractPreview}:{handleCloseModal:()=>void, handleSubmit: (e: FormEvent<HTMLFormElement>)=>void, isLoading:boolean, isEditing: boolean, currentRoom: Partial<Room>, properties: Property[], handleShowRooms: (id_property: string) => Promise<void>, contract: Partial<Contract>, setContract:Dispatch<SetStateAction<Partial<Contract>>>, setPriceRoom: (idRoom: string) => void, currentRooms: Room[], handlePreviousRents: (lease_start: Date, lease_end: Date) => void, handleFutureRents: (lease_end: Date) => void, depositPayment:Partial<Payment>, setDepositPayment:Dispatch<SetStateAction<Partial<Payment>>>, pastRents: Partial<Payment>[], handleEditPastRentAmount: (value: number, index: number) => void, contractFile:File | null,  handleFileChange: (e: ChangeEvent<HTMLInputElement>, type: "contract" | "id") => void, contractPreview: string | null, idFile: File | null, idPreview:string | null}) {
+export default function ContractModal(
+   {handleCloseModal,
+      handleSubmit,
+      isLoading,
+      currentRoom,
+      properties,
+      handleShowRooms,
+      contract,
+      setContract,
+      setPriceRoom,
+      currentRooms,
+      handlePreviousRents,
+      handleFutureRents,
+      depositPayment,
+      setDepositPayment,
+      pastRents,
+      handleEditPastRentAmount,
+      contractFile,
+      handleFileChange,
+      contractPreview,
+      additionalFile,
+      additionalPreview
+   }:{
+      handleCloseModal:()=>void,
+      handleSubmit: (e: FormEvent<HTMLFormElement>)=>void,
+      isLoading:boolean,
+      isEditing: boolean,
+      currentRoom: Partial<Room>,
+      properties: Property[],
+      handleShowRooms: (id_property: string) => Promise<void>,
+      contract: Partial<Contract>,
+      setContract:Dispatch<SetStateAction<Partial<Contract>>>,
+      setPriceRoom: (idRoom: string) => void,
+      currentRooms: Room[],
+      handlePreviousRents: (lease_start: Date, lease_end: Date) => void,
+      handleFutureRents: (lease_end: Date) => void,
+      depositPayment:Partial<Payment>,
+      setDepositPayment:Dispatch<SetStateAction<Partial<Payment>>>,
+      pastRents: Partial<Payment>[],
+      handleEditPastRentAmount: (value: number, index: number) => void,
+      contractFile:File | null,
+      handleFileChange: (e: ChangeEvent<HTMLInputElement>, type: "contract" | "id" | "additional") => void,
+      contractPreview: string | null,
+      additionalFile: File | null,
+      additionalPreview: string | null,
+   }) {
    return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
          <div
@@ -207,7 +252,7 @@ export default function ContractModal({handleCloseModal, handleSubmit, isLoading
                                     <div className="flex flex-col items-center justify-center pt-2 pb-3">
                                        <DocumentTextIcon className="h-8 w-8 text-gray-400" />
                                        <p className="text-xs text-gray-500 mt-2">
-                                          {contractFile ? `${contractFile.name} (${(contractFile.size / 1000 ).toFixed(0)} KB)` : 'Click to upload contract'}
+                                          {contractFile ? `${contractFile.name} (${(contractFile.size / 1000 ).toFixed(0)} KB)` : 'Click to upload Application + Contract + Addendum'}
                                        </p>
                                     </div>
                                     <input
@@ -246,7 +291,54 @@ export default function ContractModal({handleCloseModal, handleSubmit, isLoading
                            </div>
                         </div>
 
-
+                        <div className="grid grid-cols-1 gap-6">
+                           <div>
+                              <label htmlFor="additionalFile" className="block text-sm font-medium text-gray-700 mb-1">
+                                 Additional Documents (PDF max 10MB)
+                              </label>
+                              <div className="flex items-center">
+                                 <label className="flex flex-col items-center justify-center w-full p-2 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                    <div className="flex flex-col items-center justify-center pt-2 pb-3">
+                                       <DocumentTextIcon className="h-8 w-8 text-gray-400" />
+                                       <p className="text-xs text-gray-500 mt-2">
+                                          {additionalFile ? `${additionalFile.name} (${(additionalFile.size / 1000 ).toFixed(0)} KB)` : 'Click to upload Mutual Agreement To End'}
+                                       </p>
+                                    </div>
+                                    <input
+                                       id="additionalFile"
+                                       name="additionalFile"
+                                       type="file"
+                                       accept="application/pdf"
+                                       className="hidden"
+                                       onChange={(e) => handleFileChange(e, 'additional')}
+                                    />
+                                 </label>
+                              </div>
+                              {additionalPreview &&
+                                 <div className='mt-5 text-center'>
+                                    <span className='mb-1'>Preview</span>
+                                    <iframe
+                                       key={additionalPreview}
+                                       src={additionalPreview.slice(0, 4) === "blob" ? additionalPreview : additionalPreview + "?" + new Date().getTime()}
+                                       style={{ border: 'none', width: "100%" }}
+                                       title="PDF Viewer"
+                                    ></iframe>
+                                 </div>
+                              }
+                              {additionalPreview && (
+                                 <div className="mt-2">
+                                    <a
+                                       href={additionalPreview}
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       className="text-blue-600 hover:text-blue-800 text-sm"
+                                    >
+                                       View uploaded contract
+                                    </a>
+                                 </div>
+                              )}
+                           </div>
+                        </div>
                      </div>
 
                      <div className="mt-6 flex justify-end space-x-3">

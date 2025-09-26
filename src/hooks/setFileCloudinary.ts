@@ -23,3 +23,8 @@ export const set_id_file = async (id: Partial<Tenant>)=>{
    const response = await call("/set-id-file", id)
    return response;
 }
+
+export const set_additional_file = async (additional: Partial<Contract>)=>{
+   const response = await call("/set-additional-file", additional)
+   return response;
+}

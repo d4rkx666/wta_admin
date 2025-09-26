@@ -16,6 +16,7 @@ export async function POST(request: Request) {
 
     let contractUrl = "";
     let idUrl = "";
+    let additionalUrl = "";
 
     if(contract.contract_file_id){
       contractUrl = await getCloudinaryUrl(contract.contract_file_id, true);
@@ -25,7 +26,11 @@ export async function POST(request: Request) {
       idUrl = await getCloudinaryUrl(tenant.identification_file_id, true);
     }
 
-    return NextResponse.json({ success:true, contractUrl, idUrl });
+    if(contract.aditional_file_id){
+      additionalUrl = await getCloudinaryUrl(contract.aditional_file_id, true);
+    }
+
+    return NextResponse.json({ success:true, contractUrl, idUrl, additionalUrl});
   } catch (error) {
     console.log(error)
     return NextResponse.json({ success:false });

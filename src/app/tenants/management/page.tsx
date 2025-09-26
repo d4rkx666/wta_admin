@@ -24,11 +24,12 @@ import { set_contract } from '@/hooks/setContract';
 import Link from 'next/link';
 import AdditionalFeeModal from '../components/AdditionalFeeModal';
 import { set_additional_fee } from '@/hooks/setAdditionalFee';
-import { set_contract_file, set_id_file, upload_cloudinary } from '@/hooks/setFileCloudinary';
+import { set_additional_file, set_contract_file, set_id_file, upload_cloudinary } from '@/hooks/setFileCloudinary';
 
 type pastContractFiles = {
    id:string,
-   url:string,
+   contractUrl:string,
+   additionalUrl:string,
 }
 
 const TenantManagement = () => {
@@ -54,15 +55,18 @@ const TenantManagement = () => {
    const [futureRents, setFutureRents] = useState<Partial<Payment>[]>([]);
 
    const [hasCouple, setHasCouple] = useState(false);
-
    const [filterProperty, setFilterProperty] = useState<string>('all');
+
+   // Files Management
    const [contractFile, setContractFile] = useState<File | null>(null);
+   const [additionalFile, setAdditionalFile] = useState<File | null>(null);
    const [idFile, setIdFile] = useState<File | null>(null);
    const [contractPreview, setContractPreview] = useState<string | null>(null);
+   const [additionalPreview, setAdditionalPreview] = useState<string | null>(null);
    const [idPreview, setIdPreview] = useState<string | null>(null);
    const [pastContractFilesPreview, setPastContractFilesPreview] = useState<pastContractFiles[]>([]);
 
-   // accordion
+   // Accordion
    const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
    const toggleItem = (index: number) => {
@@ -75,19 +79,35 @@ const TenantManagement = () => {
    const { data: payments, loading: loadingPayments } = useLivePayments(); // payments
 
    // Handle file uploads
-   const handleFileChange = (e: ChangeEvent<HTMLInputElement>, type: 'contract' | 'id') => {
+   const handleFileChange = (e: ChangeEvent<HTMLInputElement>, type: 'contract' | 'id' | 'additional') => {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      if (type === 'contract') {
-         setContractFile(file);
-         if (file.type === 'application/pdf') {
+      if (file.type !== 'application/pdf') {
+         showNotification("error", "The file must be a valid PDF format.");
+         return;
+      }
+
+      if ((file.size / 1000) > 10000) {
+         showNotification("error", "The file size must be maximum 10MB.");
+         return;
+      }
+
+      switch(type){
+         case "contract":{
+            setContractFile(file);
             setContractPreview(URL.createObjectURL(file));
+            break;
          }
-      } else {
-         setIdFile(file);
-         if (file.type === 'application/pdf') {
+         case "id":{
+            setIdFile(file);
             setIdPreview(URL.createObjectURL(file));
+            break;
+         }
+         case "additional":{
+            setAdditionalFile(file);
+            setAdditionalPreview(URL.createObjectURL(file));
+            break;
          }
       }
    };
@@ -138,6 +158,9 @@ const TenantManagement = () => {
          if (idFile) {
             formData.append('idFile', "true");
          }
+         if (additionalFile) {
+            formData.append('additionalFile', "true");
+         }
 
          const response = await set_tenant(formData);
 
@@ -156,17 +179,22 @@ const TenantManagement = () => {
                   error = true;
                }
             }
+
+            if(data.signatureFiles.additional.signature){
+               if(!await uploadFile(data.signatureFiles.additional, additionalFile as File, currentContract.aditional_file_id, "additional")){
+                  error = true;
+               }
+            }
             
             if(!error){
                showNotification('success', 'Tenant form submitted successfully!');
             }
 
             handleCloseModal();
-            setContractFile(null);
-            setIdFile(null)
             setIsLoading(false);
          } else {
             showNotification('error', 'Something went wrong... Please check all the form data and try again.');
+            setIsLoading(false);
          }
       } catch (err) {
          console.log(err);
@@ -174,7 +202,7 @@ const TenantManagement = () => {
    };
 
    // eslint-disable-next-line
-   const uploadFile = async(data:any, fileUpload:File, public_id:string | undefined, type:"id" | "contract")=>{
+   const uploadFile = async(data:any, fileUpload:File, public_id:string | undefined, type:"id" | "contract" | "additional")=>{
       let success = true;
       const formData2 = new FormData();
       formData2.append('file', fileUpload);
@@ -199,7 +227,7 @@ const TenantManagement = () => {
             const sFile = await set_contract_file(newFileContract);
             const resp = await sFile.json();
             if(!resp.success){
-               showNotification('error', 'Tenant updated and contract file uploaded successfully with error updating the contract image id.');
+               showNotification('error', 'Tenant updated and contract file uploaded successfully with troubles: linking the file.');
                success = false;
             }
          }else if(type === "id"){
@@ -210,7 +238,18 @@ const TenantManagement = () => {
             const sFile = await set_id_file(newFileId);
             const resp = await sFile.json();
             if(!resp.success){
-               showNotification('error', 'Tenant updated and ID file uploaded successfully with error updating the contract image id.');
+               showNotification('error', 'Tenant updated and ID file uploaded successfully with troubles: linking the file.');
+               success = false;
+            }
+         }else if(type === "additional"){
+            const newFileAdditional: Partial<Contract> = {
+               id: data.id,
+               aditional_file_id: new_public_id
+            }
+            const sFile = await set_additional_file(newFileAdditional);
+            const resp = await sFile.json();
+            if(!resp.success){
+               showNotification('error', 'Tenant updated and additional file uploaded successfully with troubles: linking the file.');
                success = false;
             }
          }
@@ -225,7 +264,7 @@ const TenantManagement = () => {
 
    const handleCreateFirstContract = () => {
       // Validates first form
-      if (!currentTenant.name || currentTenant.name === "" || !currentTenant.email || currentTenant.email === "") {
+      if (!currentTenant.name || currentTenant.name === "" || !currentTenant.email || currentTenant.email === "" || !currentTenant.phone || currentTenant.phone === "") {
          showNotification("error", "Please fill the form");
          return;
       }
@@ -258,6 +297,8 @@ const TenantManagement = () => {
    const handleShowCreateContract = ()=>{
       setContractFile(null);
       setContractPreview(null);
+      setAdditionalFile(null);
+      setAdditionalPreview(null)
       setShowCreateContractModal(true);
    }
 
@@ -323,6 +364,7 @@ const TenantManagement = () => {
 
    const handleCloseModal = () => {
       setShowCreateModal(false);
+      setIsLoading(false);
       setShowCreateContractModal(false);
       setIsModalConfirmOpen(false)
       setCurrentTenant({ id: "" });
@@ -334,6 +376,8 @@ const TenantManagement = () => {
       setIdFile(null);
       setIdPreview(null);
       setContractPreview(null)
+      setAdditionalFile(null);
+      setAdditionalPreview(null)
       setPastRents([])
    }
 
@@ -356,13 +400,14 @@ const TenantManagement = () => {
          setCurrentContract(currentContract);
       }
 
-      if ((currentContract && currentContract?.contract_file_id) || tenant.identification_file_id) {
+      if ((currentContract && (currentContract?.contract_file_id || currentContract.aditional_file_id)) || tenant.identification_file_id) {
          const data = await get_tenant_files(tenant, currentContract);
-         const resp: { success: boolean, contractUrl: string, idUrl: string } = await data.json();
+         const resp: { success: boolean, contractUrl: string, idUrl: string, additionalUrl: string} = await data.json();
 
          if (resp.success) {
             setContractPreview(resp.contractUrl ? resp.contractUrl : null)
             setIdPreview(resp.idUrl ? resp.idUrl : null)
+            setAdditionalPreview(resp.additionalUrl ? resp.additionalUrl : null)
          }
       }
 
@@ -370,12 +415,13 @@ const TenantManagement = () => {
       const promise = past_contracts.filter(c=>c.contract_file_id).map(async c=>{
 
          const data = await get_tenant_files(tenant, c);
-         const resp: { success: boolean, contractUrl: string, idUrl: string } = await data.json();
+         const resp: { success: boolean, contractUrl: string, idUrl: string, additionalUrl: string} = await data.json();
 
          if (resp.success) {
             const p:pastContractFiles = {
                id:c.id,
-               url: resp.contractUrl,
+               contractUrl: resp.contractUrl,
+               additionalUrl: resp.additionalUrl
             }
             setPastContractFilesPreview(prev=> [...prev, p])
          }
@@ -481,8 +527,9 @@ const TenantManagement = () => {
       return () => {
          if (contractPreview) URL.revokeObjectURL(contractPreview);
          if (idPreview) URL.revokeObjectURL(idPreview);
+         if (additionalPreview) URL.revokeObjectURL(additionalPreview);
       };
-   }, [contractPreview, idPreview]);
+   }, [contractPreview, idPreview, additionalPreview]);
 
 
    if (loadingProperties || loadingTenants || loadingPayments || loadingContracts) {
@@ -786,7 +833,7 @@ const TenantManagement = () => {
 
                                  <div>
                                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                                       Phone Number <span className='font-normal text-xs text-gray-500'>Optional</span>
+                                       Phone Number
                                     </label>
                                     <div className="relative rounded-md shadow-sm">
                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -808,7 +855,7 @@ const TenantManagement = () => {
 
                               <div>
                                  <label htmlFor="idFile" className="block text-sm font-medium text-gray-700 mb-1">
-                                    ID/Passport (PDF max 10MB)
+                                    Personal Document (PDF max 10MB)
                                  </label>
                                  <label className='text-xs text-gray-500'>Optional</label>
 
@@ -817,7 +864,7 @@ const TenantManagement = () => {
                                        <div className="flex flex-col items-center justify-center pt-2 pb-3">
                                           <DocumentTextIcon className="h-8 w-8 text-gray-400" />
                                           <p className="text-xs text-gray-500 mt-2">
-                                             {idFile ? `${idFile.name} (${(idFile.size / 1000 ).toFixed(0)} KB)` : 'Click to upload ID/Passport'}
+                                             {idFile ? `${idFile.name} (${(idFile.size / 1000 ).toFixed(0)} KB)` : 'Click to upload ID/Passport + LOA / PAYSTUB / OFFER LETTER / WORK PERMIT (exceptions)'}
                                           </p>
                                        </div>
                                        <input
@@ -908,7 +955,7 @@ const TenantManagement = () => {
                                                    <div className="flex flex-col items-center justify-center pt-2 pb-3">
                                                       <DocumentTextIcon className="h-8 w-8 text-gray-400" />
                                                       <p className="text-xs text-gray-500 mt-2">
-                                                         {contractFile ? `${contractFile.name} (${(contractFile.size / 1000 ).toFixed(0)} KB)` : 'Click to upload contract'}
+                                                         {contractFile ? `${contractFile.name} (${(contractFile.size / 1000 ).toFixed(0)} KB)` : 'Click to upload Application + Contract + Addendum'}
                                                       </p>
                                                    </div>
                                                    <input
@@ -934,6 +981,44 @@ const TenantManagement = () => {
                                              }
                                           </div>
                                        </div>
+
+                                       <div className="grid grid-cols-1 gap-6">
+                                          <div>
+                                             <label htmlFor="contractFile" className="block text-sm font-medium text-gray-700 mb-1">
+                                                Additional Document (PDF max 10MB)
+                                             </label>
+                                             <label className='text-xs text-gray-500'>Optional</label>
+                                             <div className="flex items-center">
+                                                <label className="flex flex-col items-center justify-center w-full p-2 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                                   <div className="flex flex-col items-center justify-center pt-2 pb-3">
+                                                      <DocumentTextIcon className="h-8 w-8 text-gray-400" />
+                                                      <p className="text-xs text-gray-500 mt-2">
+                                                         {additionalFile ? `${additionalFile.name} (${(additionalFile.size / 1000 ).toFixed(0)} KB)` : 'Click to upload Mutual Agreement To End'}
+                                                      </p>
+                                                   </div>
+                                                   <input
+                                                      id="additionalFile"
+                                                      name="additionalFile"
+                                                      type="file"
+                                                      accept="application/pdf"
+                                                      className="hidden"
+                                                      onChange={(e) => handleFileChange(e, 'additional')}
+                                                   />
+                                                </label>
+                                             </div>
+                                             {additionalPreview &&
+                                                <div className='mt-5 text-center w-full'>
+                                                   <Link href={additionalPreview.slice(0, 4) === "blob" ? additionalPreview : additionalPreview + "?" + new Date().getTime()} target='_blank'><span className='mb-1'>Preview</span></Link>
+                                                   <iframe
+                                                      key={additionalPreview + "?" + new Date().getTime()}
+                                                      src={additionalPreview.slice(0, 4) === "blob" ? additionalPreview : additionalPreview + "?" + new Date().getTime()}
+                                                      style={{ border: 'none', width: "100%" }}
+                                                      title="PDF Viewer"
+                                                   ></iframe>
+                                                </div>
+                                             }
+                                          </div>
+                                       </div>
                                     </div>
                                  </div>
                               }
@@ -942,10 +1027,20 @@ const TenantManagement = () => {
                               {pastContracts &&
                                  <div className={`w-full space-y-2`}>
                                     {pastContracts.map((c, index) => {
-                                       let file = pastContractFilesPreview.find(p=>p.id === c.id)?.url;
-                                       if(file){
-                                          file = file + "?" + new Date().getTime()
+                                       let contractFile = pastContractFilesPreview.find(p=>p.id === c.id)?.contractUrl;
+                                       let additionalFile = pastContractFilesPreview.find(p=>p.id === c.id)?.additionalUrl;
+
+                                       if(contractFile){
+                                          contractFile = contractFile + "?" + new Date().getTime()
                                        }
+
+                                       if(additionalFile){
+                                          additionalFile = additionalFile + "?" + new Date().getTime()
+                                       }
+                                       
+                                       const room = roomData.find(r=> r.id === c.room_id);
+                                       const property = properties.findLast(p=> p.id === room?.id_property)
+
                                        return(
                                        <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
                                           <button
@@ -975,20 +1070,37 @@ const TenantManagement = () => {
                                              <div className="p-4 text-gray-600">
                                                 <div className="flex justify-between border-b pb-3">
                                                    <div>
-                                                      <span className="text-gray-600">Property:</span>
+                                                      <span className="text-gray-600">Status:</span>
                                                       <span className="text-gray-900 font-medium ml-2">{c.status}</span>
+                                                   </div>
+                                                </div>
+                                                <div className="flex justify-between border-b pb-3">
+                                                   <div>
+                                                      <span className="text-gray-600">Property:</span>
+                                                      <span className="text-gray-900 font-medium ml-2">{property?.location}</span>
                                                    </div>
                                                    <div>
                                                       <span className="text-gray-600">Room:</span>
-                                                      <span className="text-gray-900 font-medium ml-2">#</span>
+                                                      <span className="text-gray-900 font-medium ml-2">#{room?.room_number}</span>
                                                    </div>
                                                 </div>
-                                                {file && 
+                                                {contractFile && 
                                                    <div className='mt-5 text-center w-full'>
-                                                      <Link href={file} target='_blank'><span className='mb-1'>Preview</span></Link>
+                                                      <Link href={contractFile} target='_blank'><span className='mb-1'>Preview Contract</span></Link>
                                                       <iframe
-                                                         key={file}
-                                                         src={file}
+                                                         key={contractFile}
+                                                         src={contractFile}
+                                                         style={{ border: 'none', width: "100%" }}
+                                                         title="PDF Viewer"
+                                                      ></iframe>
+                                                   </div>
+                                                }
+                                                {additionalFile && 
+                                                   <div className='mt-5 text-center w-full'>
+                                                      <Link href={additionalFile} target='_blank'><span className='mb-1'>Preview Additional Document</span></Link>
+                                                      <iframe
+                                                         key={additionalFile}
+                                                         src={additionalFile}
                                                          style={{ border: 'none', width: "100%" }}
                                                          title="PDF Viewer"
                                                       ></iframe>
@@ -1061,6 +1173,7 @@ const TenantManagement = () => {
                title="Confirm Action"
                message="Are you sure you want to proceed deleting the user?"
                confirmText="Proceed"
+               isLoading={isLoading}
                additionalContent={<>
                <label>This will delete all the tenant&apos;s data such as</label>
                <ul>
@@ -1096,8 +1209,8 @@ const TenantManagement = () => {
                contractFile={contractFile}
                handleFileChange={handleFileChange}
                contractPreview={contractPreview}
-               idFile={idFile}
-               idPreview={idPreview}
+               additionalFile={additionalFile}
+               additionalPreview={additionalPreview}
             />
          }
 

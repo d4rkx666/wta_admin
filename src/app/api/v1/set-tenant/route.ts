@@ -21,8 +21,9 @@ export async function POST(req: Request) {
   const deposit = JSON.parse(formData.getAll('deposit')[0] as string) as Payment;
   const pastRents = JSON.parse(formData.getAll('pastRents')[0] as string) as Payment[];
   const futureRents = JSON.parse(formData.getAll('futureRents')[0] as string) as Payment[];
-  const contractFile = formData.getAll('contractFile')[0] as File
-  const idFile = formData.getAll('idFile')[0] as File
+  const contractFile = formData.getAll('contractFile')[0] as string
+  const idFile = formData.getAll('idFile')[0] as string
+  const additionalFile = formData.getAll('additionalFile')[0] as string
 
   // Check auth
   if(!getSession()){
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
   let userIdRollback = "";
   try {
     
-    const signatureFiles = {contract: {}, id: {}};
+    const signatureFiles = {contract: {}, id: {}, additional: {}};
 
     if (!tenant.id) { // New tenant
 
@@ -134,10 +135,13 @@ export async function POST(req: Request) {
       
       // INSERT FILES IF EXISTS
       if(contractFile){
-        signatureFiles.contract = await getSignatureFile(tenant.id + "/" + tenant.current_contract_id, currentContract.contract_file_id, contract.id);
+        signatureFiles.contract = await getSignatureFile(tenant.id + "/" + contract.id, contract.contract_file_id, contract.id);
       }
       if(idFile){
         signatureFiles.id = await getSignatureFile(tenant.id, tenant.identification_file_id, tenant.id);
+      }
+      if(additionalFile){
+        signatureFiles.additional = await getSignatureFile(tenant.id + "/" + contract.id, contract.aditional_file_id, contract.id);
       }
 
       const dataToInsert: MultipleDoc[] = [
@@ -185,6 +189,9 @@ export async function POST(req: Request) {
       }
       if(idFile){
         signatureFiles.id = await getSignatureFile(tenant.id, tenant.identification_file_id, tenant.id);
+      }
+      if(additionalFile){
+        signatureFiles.additional = await getSignatureFile(tenant.id + "/" + tenant.current_contract_id, currentContract.aditional_file_id, tenant.current_contract_id);
       }
       await firestoreService.setDocument("tenants", tenant.id, tenantToUpdate);
       await firestoreService.setDocument("contracts", currentContract.id, contractToUpdate);
