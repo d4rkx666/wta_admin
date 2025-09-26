@@ -304,7 +304,7 @@ const TenantManagement = () => {
 
    const handleCreateContract = async (e: FormEvent<HTMLFormElement>)=>{
       e.preventDefault();
-
+      setIsLoading(true);
       try{
          const formData = new FormData();
          formData.append('contract', JSON.stringify(contract));
@@ -312,18 +312,41 @@ const TenantManagement = () => {
          formData.append('deposit', JSON.stringify(depositPayment));
 
          if (contractFile) {
-            formData.append('contractFile', contractFile);
+            formData.append('contractFile', "true");
+         }
+
+         if (additionalFile) {
+            formData.append('additionalFile', "true");
          }
 
          const data = await set_contract(formData);
          const resp = await data.json();
          if (resp.success) {
+            // Upload pdf
+            let error = false;
+            if(resp.signatureFiles.contract.signature){
+               if(!await uploadFile(resp.signatureFiles.contract, contractFile as File, contract.contract_file_id, "contract")){
+                  error = true;
+               }
+            }
+
+            if(resp.signatureFiles.additional.signature){
+               if(!await uploadFile(resp.signatureFiles.additional, additionalFile as File, contract.aditional_file_id, "additional")){
+                  error = true;
+               }
+            }
+            
+            if(!error){
+               showNotification('success', 'Tenant form submitted successfully!');
+            }
             showNotification('success', 'Contract created successfully!');
             handleCloseModal();
          } else {
             showNotification('error', 'Something went wrong... Please check all the form data and try again.');
          }
-      }catch{}
+      }catch{}finally{
+         setIsLoading(false);
+      }
    }
 
    const handleDelTenant = async () => {

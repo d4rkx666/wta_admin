@@ -6,7 +6,7 @@ import { Contract } from '@/types/contract';
 import { firestoreService } from '@/lib/services/firestore-service';
 import { Payment } from '@/types/payment';
 import { MultipleDoc } from '@/types/multipleDocsToInsert';
-import { insertFile } from '@/utils/cloudinaryActions';
+import { getSignatureFile } from '@/utils/cloudinaryActions';
 
 export async function POST(req: Request) {
   const formData = await req.formData();
@@ -14,7 +14,8 @@ export async function POST(req: Request) {
   const contract = JSON.parse(formData.getAll('contract')[0] as string) as Contract;
   const tenant = JSON.parse(formData.getAll('currentTenant')[0] as string) as Tenant;
   const deposit = JSON.parse(formData.getAll('deposit')[0] as string) as Payment;
-  const contractFile = formData.getAll('contractFile')[0] as File
+  const contractFile = formData.getAll('contractFile')[0] as string;
+  const additionalFile = formData.getAll('additionalFile')[0] as string;
 
   // Check auth
   if(!getSession()){
@@ -22,6 +23,8 @@ export async function POST(req: Request) {
   }
   
   try {
+    const signatureFiles = {contract: {}, additional: {}};
+
     //Inactivate current contract:
     const currentContract = await firestoreService.getDocument("contracts",tenant.current_contract_id) as Contract;
     currentContract.status = "Terminated";
@@ -36,10 +39,10 @@ export async function POST(req: Request) {
     contract.createdAt = new Date();
 
     if(contractFile){
-      const public_id = await insertFile(contractFile, tenant.id, true)
-      if(public_id){
-        contract.contract_file_id = public_id; // insert the public_id
-      }
+      signatureFiles.contract = await getSignatureFile(tenant.id + "/" + contract.id, contract.contract_file_id, contract.id);
+    }
+    if(additionalFile){
+      signatureFiles.additional = await getSignatureFile(tenant.id + "/" + contract.id, contract.aditional_file_id, contract.id);
     }
 
     deposit.id = uuidv4();
@@ -78,7 +81,7 @@ export async function POST(req: Request) {
 
     await firestoreService.setMultipleDocuments(multipleDocsToInsert)
     
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, signatureFiles });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
