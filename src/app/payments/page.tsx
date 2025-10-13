@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { PaymentStatus } from '@/types/paymentStatus';
 import { Payment, PaymentType } from '@/types/payment';
 import { useLivePayments } from '@/hooks/useLivePayments';
@@ -29,6 +29,7 @@ const PaymentsDashboard = () => {
    const [showImagePreview, setShowImagePreview] = useState(false);
    const [imagePreview, setImagePreview] = useState("");
    const [isLoading, setIsLoading] = useState(false);
+   const [findBy, setFindBy] = useState("");
 
    const { data: payments, loading: loadingPayments } = useLivePayments();
    const { data: tenants, loading: loadingTenants } = useLiveTenants();
@@ -36,20 +37,50 @@ const PaymentsDashboard = () => {
    const { data: rooms, loading: loadingRooms } = useRoom();
    const { data: properties, loading: loadingProperties } = useLiveProperties();
 
-   // Filter payments based on active tab and type filter
-   const filteredPayments = payments.filter(payment => {
-      // Filter by status
-      if (activeTab !== 'all' && payment.status !== activeTab) return false;
+   const filteredPayments = useMemo(()=>{
+      let filtered = payments.filter(payment => {
+         // Filter by status
+         if (activeTab !== 'all' && payment.status !== activeTab) return false;
 
-      // Filter by type
-      if (paymentTypeFilter !== 'all' && payment.type !== paymentTypeFilter) return false;
+         // Filter by type
+         if (paymentTypeFilter !== 'all' && payment.type !== paymentTypeFilter) return false;
 
-      return true;
-   }).sort((a, b) => {
-      const dateA = a.dueDate ? (a.dueDate as Timestamp).toDate().getTime() : Infinity;
-      const dateB = b.dueDate ? (b.dueDate as Timestamp).toDate().getTime() : Infinity;
-      return dateA - dateB;
-   });
+         return true;
+      }).sort((a, b) => {
+         const dateA = a.dueDate ? (a.dueDate as Timestamp).toDate().getTime() : Infinity;
+         const dateB = b.dueDate ? (b.dueDate as Timestamp).toDate().getTime() : Infinity;
+         return dateA - dateB;
+      });
+
+      if(findBy !== ""){
+         const foundTenants = tenants.filter(t=>t.name.toLowerCase().includes(findBy)).map(t=>{
+            return t.current_contract_id;
+         });
+
+         const foundProperties = properties.filter(p => p.description.toLowerCase().includes(findBy) || p.location.toLowerCase().includes(findBy)).map(p => {
+            return p.id;
+         })
+         const foundRooms = rooms.filter(r => foundProperties.includes(r.id_property)).map(r => {
+            return r.id;
+         })
+         const foundTenantProperties = contracts.filter(c => foundRooms.includes(c.room_id)).map(c => {
+            return c.id;
+         })
+
+         console.log(foundTenantProperties)
+
+         filtered = filtered.filter(p=>{
+            if(foundTenants.includes(p.contract_id) || foundTenantProperties.includes(p.contract_id)){
+               return true;
+            }
+
+            return false;
+         });
+      }
+
+
+      return filtered;
+   },[findBy, paymentTypeFilter, activeTab, contracts])
 
    // Calculate totals
    const totalPending = filteredPayments.filter(p => p.status === 'Pending').reduce((sum, p) => sum + p.amount_payment, 0);
@@ -213,6 +244,13 @@ const PaymentsDashboard = () => {
                      <option value="deposit">Deposit</option>
                      <option value="bills">Bills</option>
                   </select>
+               </div>
+
+               <div className="w-full md:w-auto">
+                  <input type='text'
+                  placeholder='Find by tenant or property'
+                  onKeyUp={(e)=> setFindBy((e.target as HTMLInputElement).value)}
+                  className='w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500'/>
                </div>
             </div>
          </div>
