@@ -25,8 +25,9 @@ const PaymentsDashboard = () => {
    const [showDiscountModal, setShowDiscountModal] = useState(false);
    const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
    const [markPaymentAmount, setMarkPaymentAmount] = useState(0);
-   const [imageProof, setImageProof] = useState<string | null>(null);
+   const [imageProof, setImageProof] = useState<string[]>([]);
    const [showImagePreview, setShowImagePreview] = useState(false);
+   const [imagePreview, setImagePreview] = useState("");
    const [isLoading, setIsLoading] = useState(false);
 
    const { data: payments, loading: loadingPayments } = useLivePayments();
@@ -101,10 +102,11 @@ const PaymentsDashboard = () => {
 
    const handleConfirmPayment = async (payment: Payment) => {
       setSelectedPayment(payment);
+      setImageProof([]);
       setMarkPaymentAmount(payment.amount_payment - (payment.amount_discount ? payment.amount_discount : 0));
       setShowMarkModal(true);
 
-      if (payment.proof_img_id) {
+      if (payment.proof_img_id && Array.isArray(payment.proof_img_id) && payment.proof_img_id.length > 0) {
          const response = await get_proof_image(payment);
          const data = await response.json();
 
@@ -408,21 +410,27 @@ const PaymentsDashboard = () => {
 
                            <div className="mt-4">
                               <h3 className="text-sm font-medium text-gray-700 mb-2">Payment Proof</h3>
-                              <div
-                                 className="relative aspect-square w-full bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
-                                 onClick={() => setShowImagePreview(true)}
-                              >
-                                 {imageProof ? (
-                                    <Image
-                                       src={imageProof}
-                                       alt="Payment proof"
-                                       fill
-                                       className="object-contain"
-                                    />
-                                 ) : (
-                                    <Loader />
+                              
+                                 {imageProof.length > 0 ? imageProof.map((img, i) => {
+                                    return (
+                                       <div
+                                          key={i}
+                                          className="relative aspect-square w-full bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
+                                          onClick={() => {
+                                             setImagePreview(img);
+                                             setShowImagePreview(true);
+                                          }}
+                                       >
+                                          <Image
+                                             src={img}
+                                             alt="Payment proof"
+                                             fill
+                                             className="object-contain"
+                                          />
+                                       </div>
+                                    )}) : (
+                                    <p>Nothing to show.</p>
                                  )}
-                              </div>
                            </div>
                         </div>
 
@@ -445,7 +453,7 @@ const PaymentsDashboard = () => {
                </div>
 
                {/* Image Preview Modal - Only shown when showImagePreview is true */}
-               {showImagePreview && (
+               {showImagePreview && imagePreview && (
                   <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-[60]">
                      <div className="relative w-full h-full max-w-4xl max-h-[90vh]">
                         <button
@@ -459,11 +467,10 @@ const PaymentsDashboard = () => {
 
                         <div className="w-full h-full flex items-center justify-center">
                            <Image
-                              src={imageProof || ''}
-                              alt="Payment proof preview"
+                              src={imagePreview}
+                              alt="Payment proof"
                               fill
                               className="object-contain"
-                              onClick={() => setShowImagePreview(false)}
                            />
                         </div>
                      </div>

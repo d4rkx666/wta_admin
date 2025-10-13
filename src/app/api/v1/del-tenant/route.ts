@@ -56,8 +56,9 @@ export async function POST(req: Request) {
               data: p
             })
 
-            if(p.proof_img_id){
-              filesToDelete.push(p.proof_img_id)
+            if(p.proof_img_id && Array.isArray(p.proof_img_id) && p.proof_img_id.length > 0){
+              for(const proof of p.proof_img_id)
+              filesToDelete.push(proof)
             }
           }
         }

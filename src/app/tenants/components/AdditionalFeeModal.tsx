@@ -1,10 +1,6 @@
-import { useLiveContracts } from "@/hooks/useLiveContracts";
-import { useLiveProperties } from "@/hooks/useLiveProperties";
-import { useLiveTenants } from "@/hooks/useLiveTenants";
-import { useRoom } from "@/hooks/useRoom";
 import { Payment } from "@/types/payment";
-import { HomeIcon, XMarkIcon, CurrencyDollarIcon, DocumentTextIcon, UserIcon } from "@heroicons/react/24/outline";
-import { Dispatch, FormEvent, SetStateAction, useMemo, useState } from "react";
+import { XMarkIcon, CurrencyDollarIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { Dispatch, FormEvent, SetStateAction, useState } from "react";
 
 export default function AdditionalFeeModal({
    setShowAdditionalFeeModal,
@@ -19,26 +15,6 @@ export default function AdditionalFeeModal({
    feeTypes?: Array<{ id: string, name: string, defaultAmount: number }>
 }) {
    const [currentFee, setCurrentFee] = useState<Partial<Payment>>({});
-   const [currentPropertyId, setCurrentPropertyId] = useState<string>("")
-
-   // DB
-   const { data: properties} = useLiveProperties();
-   const { data: rooms} = useRoom();
-   const { data: contracts } = useLiveContracts();
-   const { data: tenants } = useLiveTenants();
-
-   const tenant_list = useMemo(() => {
-      const t_list = tenants.filter(t=>{
-         const contract = contracts.find(c=>c.id === t.current_contract_id);
-         const room = rooms.find(r=>r.id === contract?.room_id);
-         if(room && room.id_property === currentPropertyId){
-            return true;
-         }
-         return false;
-      })
-
-      return t_list;
-   }, [currentPropertyId])
 
    return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -68,57 +44,6 @@ export default function AdditionalFeeModal({
                <div className="px-6 py-5">
                   <form onSubmit={(e)=>handleSubmit(e,currentFee)}>
                      <div className="space-y-4">
-                        {/* Tenant Selection */}
-                        <div>
-                           <label htmlFor="tenantId" className="block text-sm font-medium text-gray-700 mb-1">
-                              Property
-                           </label>
-                           <div className="relative rounded-md shadow-sm">
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                 <HomeIcon className="h-5 w-5 text-gray-400" />
-                              </div>
-                              <select
-                                 id="propertyId"
-                                 name="propertyId"
-                                 required
-                                 onChange={(e) => setCurrentPropertyId(e.target.value)}
-                                 className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border bg-white disabled:bg-gray-200"
-                              >
-                                 <option value="">Select Property</option>
-                                 {properties.map((property, i) => (
-                                    <option key={i} value={property.id}>
-                                       {property.title}
-                                    </option>
-                                 ))}
-                              </select>
-                           </div>
-                        </div>
-
-                        {/* Tenant Selection */}
-                        <div>
-                           <label htmlFor="roomId" className="block text-sm font-medium text-gray-700 mb-1">
-                              Tenant
-                           </label>
-                           <div className="relative rounded-md shadow-sm">
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                 <UserIcon className="h-5 w-5 text-gray-400" />
-                              </div>
-                              <select
-                                 id="tenantId"
-                                 name="tenantId"
-                                 required
-                                 onChange={(e)=>setCurrentFee({...currentFee, contract_id:e.target.value})}
-                                 className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border bg-white disabled:bg-gray-200"
-                              >
-                                 <option value="">Select Tenant</option>
-                                 {tenant_list.map((t, i) => (
-                                    <option key={i} value={t.current_contract_id}>
-                                       {t.name}
-                                    </option>
-                                 ))}
-                              </select>
-                           </div>
-                        </div>
 
                         {/* Fee Type Selection */}
                         <div>

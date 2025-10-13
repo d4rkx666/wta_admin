@@ -277,7 +277,9 @@ const TenantManagement = () => {
 
    const handleCreateNewAdditionalFee = async(e: FormEvent<HTMLFormElement>, fee:Partial<Payment>)=>{
       e.preventDefault()
+      setIsLoading(true);
       try{
+         fee.contract_id = currentTenant.current_contract_id;
          const data = await set_additional_fee(fee);
          const resp = await data.json();
 
@@ -464,7 +466,8 @@ const TenantManagement = () => {
       setShowCreateModal(true);
    }
 
-   const handleAddAdditionalFee = ()=>{
+   const handleAddAdditionalFee = (tenant:Tenant)=>{
+      setCurrentTenant(tenant);
       setShowAdditionalFeeModal(true);
    }
 
@@ -717,7 +720,7 @@ const TenantManagement = () => {
                                           Edit
                                        </button>
                                        <button
-                                          onClick={()=>handleAddAdditionalFee()}
+                                          onClick={()=>handleAddAdditionalFee(tenant)}
                                           className="text-blue-600 hover:text-blue-900"
                                        >
                                           Add additional fee

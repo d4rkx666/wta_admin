@@ -13,10 +13,13 @@ export async function POST(request: Request) {
 
   try {
 
-    let proofUrl = "";
+    const proofUrl:string[] = [];
 
-    if(payment.proof_img_id){
-      proofUrl = await getCloudinaryUrl(payment.proof_img_id, false);
+    if(payment.proof_img_id && Array.isArray(payment.proof_img_id) && payment.proof_img_id.length > 0){
+      for(const img of payment.proof_img_id){
+        const proof = await getCloudinaryUrl(img, false);
+        proofUrl.push(proof);
+      }
     }
 
     return NextResponse.json({ success:true, proofUrl });

@@ -8,7 +8,7 @@ export type Payment = {
    id: string;
    contract_id: string;
    bill_id?: string;
-   proof_img_id?: string;
+   proof_img_id?: string[];
    e_transfer_email?: string;
    type: PaymentType;
    payment_method: PaymentMethod;
