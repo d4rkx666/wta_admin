@@ -21,6 +21,8 @@ const PaymentsDashboard = () => {
    const { showNotification } = useNotification()
    const [activeTab, setActiveTab] = useState<PaymentStatus | 'all'>("Marked");
    const [paymentTypeFilter, setPaymentTypeFilter] = useState<PaymentType | 'all'>('all');
+   const [yearFilter, setYearFilter] = useState((new Date).getFullYear());
+   const [monthFilter, setMonthFilter] = useState((new Date).getMonth() + 1);
    const [showMarkModal, setShowMarkModal] = useState(false);
    const [showDiscountModal, setShowDiscountModal] = useState(false);
    const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
@@ -45,6 +47,10 @@ const PaymentsDashboard = () => {
          // Filter by type
          if (paymentTypeFilter !== 'all' && payment.type !== paymentTypeFilter) return false;
 
+         // Filter by date
+         if (payment.dueDate && (payment.dueDate as Timestamp).toDate().getMonth() + 1 !== monthFilter) return false;
+         if (payment.paidDate && (payment.paidDate as Timestamp).toDate().getMonth() + 1 !== monthFilter) return false;
+
          return true;
       }).sort((a, b) => {
          const dateA = a.dueDate ? (a.dueDate as Timestamp).toDate().getTime() : Infinity;
@@ -67,8 +73,6 @@ const PaymentsDashboard = () => {
             return c.id;
          })
 
-         console.log(foundTenantProperties)
-
          filtered = filtered.filter(p=>{
             if(foundTenants.includes(p.contract_id) || foundTenantProperties.includes(p.contract_id)){
                return true;
@@ -80,7 +84,7 @@ const PaymentsDashboard = () => {
 
 
       return filtered;
-   },[findBy, paymentTypeFilter, activeTab, contracts])
+   },[findBy, paymentTypeFilter, yearFilter, monthFilter, activeTab, contracts])
 
    // Calculate totals
    const totalPending = filteredPayments.filter(p => p.status === 'Pending').reduce((sum, p) => sum + p.amount_payment, 0);
@@ -161,6 +165,20 @@ const PaymentsDashboard = () => {
          return date.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       }
    };
+
+   const writeMonths = ()=>{
+      const months = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+      const currentMonth = (new Date()).getMonth();
+      const objects = months.map( (m, i)=> {
+         if(currentMonth === i){
+            return <option key={i} value={i + 1}>{m}</option>;
+         }else{
+            return <option key={i} value={i + 1}>{m}</option>;
+         }
+      })
+
+      return objects;
+   }
 
    if (loadingPayments || loadingTenants || loadingRooms || loadingProperties || loadingContracts) {
       return <Loader />
@@ -247,11 +265,30 @@ const PaymentsDashboard = () => {
                </div>
 
                <div className="w-full md:w-auto">
-                  <input type='text'
-                  placeholder='Find by tenant or property'
-                  onKeyUp={(e)=> setFindBy((e.target as HTMLInputElement).value)}
-                  className='w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500'/>
+                  <select
+                     value={paymentTypeFilter}
+                     onChange={(e) => setYearFilter(Number(e.target.value))}
+                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                     <option value={(new Date()).getFullYear()}>{(new Date()).getFullYear()}</option>
+                     <option value={(new Date()).getFullYear() - 1}>{(new Date()).getFullYear() - 1}</option>
+                  </select>
                </div>
+               <div className="w-full md:w-auto">
+                  <select
+                     value={monthFilter}
+                     onChange={(e) => setMonthFilter(Number(e.target.value))}
+                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                     {writeMonths()}
+                  </select>
+               </div>
+            </div>
+            <div className="w-auto md:w-80 mt-5">
+               <input type='text'
+               placeholder='Find by tenant or property'
+               onKeyUp={(e)=> setFindBy((e.target as HTMLInputElement).value)}
+               className='w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500'/>
             </div>
          </div>
 
@@ -357,7 +394,15 @@ const PaymentsDashboard = () => {
                                        }`}>
                                        {payment.status}
                                        {payment.status === 'Marked' && (
-                                          <span className="ml-1">(${(payment.amount_paid - (payment.amount_discount ? payment.amount_discount : 0)).toFixed(2)})</span>
+                                          <>
+                                             <span className="ml-1">(${(payment.amount_paid - (payment.amount_discount ? payment.amount_discount : 0)).toFixed(2)})</span>
+                                             <br/>
+                                          </>
+                                       )}
+                                    </span>
+                                    <span className={`px-2 py-1 text-xs`}>
+                                       {payment.status === 'Marked' && (
+                                          <span className="ml-1">On {(payment.paidDate as Timestamp).toDate().toDateString()}</span>
                                        )}
                                     </span>
                                  </td>
@@ -429,7 +474,7 @@ const PaymentsDashboard = () => {
                            </div>
 
                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Amount Received</label>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Amount Received on {(selectedPayment.paidDate as Timestamp).toDate().toDateString()}</label>
                               <input
                                  type="number"
                                  step="0.01"
