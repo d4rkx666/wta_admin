@@ -9,7 +9,7 @@ type Images = {
 export type Room= {
   id: string;
   id_property: string;
-  room_number: number;
+  room_number: string;
   title: string;
   thumbnail: string;
   price: number;
@@ -25,7 +25,7 @@ export type Room= {
 export const RoomDefaultVal: Room = {
     id: '',
     id_property: '',
-    room_number: 0,
+    room_number: '',
     title: '',
     thumbnail: '',
     price: 0,

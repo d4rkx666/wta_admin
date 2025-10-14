@@ -27,7 +27,7 @@ export function RoomCard({room, onEdit, onDelete }: { room: Room; onEdit: () => 
             {room.available ? 'Available' : 'Not Available'}
           </span>
           <span className="text-gray-500 text-sm">
-            Room #{room.room_number}
+            {room.room_number}
           </span>
         </div>
         <div className="flex space-x-2">

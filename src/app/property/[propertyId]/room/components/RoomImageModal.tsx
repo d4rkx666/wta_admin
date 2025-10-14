@@ -127,7 +127,7 @@ export default function RoomImageModal({ room, onClose, onSave }: {
       const form = e.target as HTMLFormElement;
       const roomToInsert = room;
       roomToInsert.title = (form.elements.namedItem('title') as HTMLInputElement).value;
-      roomToInsert.room_number = Number((form.elements.namedItem('room_number') as HTMLInputElement).value);
+      roomToInsert.room_number = (form.elements.namedItem('room_number') as HTMLInputElement).value;
       roomToInsert.price = Number((form.elements.namedItem('price') as HTMLInputElement).value);
       roomToInsert.fixed_price = Number((form.elements.namedItem('fixed_price') as HTMLInputElement).value);
       roomToInsert.description = (form.elements.namedItem('description') as HTMLTextAreaElement).value;
@@ -207,10 +207,9 @@ export default function RoomImageModal({ room, onClose, onSave }: {
                       Room number
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       id="room_number"
                       name="room_Number"
-                      min={1}
                       required
                       defaultValue={room.room_number}
                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border peer"
