@@ -3,7 +3,7 @@
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useLiveProperties } from '@/hooks/useLiveProperties';
 import Loader from '@/app/components/common/Loader';
-import { XMarkIcon, UserIcon, EnvelopeIcon, PhoneIcon, CurrencyDollarIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UserIcon, EnvelopeIcon, PhoneIcon, CurrencyDollarIcon, DocumentTextIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import { useNotification } from '@/app/context/NotificationContext';
 import { Tenant } from '@/types/tenant';
 import { set_tenant } from '@/hooks/setTenant';
@@ -53,8 +53,9 @@ const TenantManagement = () => {
    const [pastContracts, setPastContracts] = useState<Partial<Contract>[]>([]);
    const [pastRents, setPastRents] = useState<Partial<Payment>[]>([]);
    const [futureRents, setFutureRents] = useState<Partial<Payment>[]>([]);
-
    const [hasCouple, setHasCouple] = useState(false);
+   const [modifiedLeaseEnd, setModifiedLeaseEnd] = useState<Date | null>(null);
+
    const [filterProperty, setFilterProperty] = useState<string>('all');
 
    // Files Management
@@ -148,6 +149,7 @@ const TenantManagement = () => {
          formData.append('tenant', JSON.stringify(tenantToInsert));
          formData.append('contract', JSON.stringify(contract));
          formData.append('currentContract', JSON.stringify(currentContract));
+         formData.append('modifiedLeaseEnd', JSON.stringify(modifiedLeaseEnd));
          formData.append('deposit', JSON.stringify(depositPayment));
          formData.append('pastRents', JSON.stringify(pastRents));
          formData.append('futureRents', JSON.stringify(futureRents));
@@ -193,7 +195,7 @@ const TenantManagement = () => {
             handleCloseModal();
             setIsLoading(false);
          } else {
-            showNotification('error', 'Something went wrong... Please check all the form data and try again.');
+            showNotification('error', data.message);
             setIsLoading(false);
          }
       } catch (err) {
@@ -423,6 +425,7 @@ const TenantManagement = () => {
       const currentContract = contracts.find(c => c.tenant_id === tenant.id && c.is_current);
       if (currentContract) {
          setCurrentContract(currentContract);
+         setModifiedLeaseEnd((currentContract.lease_end as Timestamp).toDate())
       }
 
       if ((currentContract && (currentContract?.contract_file_id || currentContract.aditional_file_id)) || tenant.identification_file_id) {
@@ -878,6 +881,37 @@ const TenantManagement = () => {
                                     </div>
                                  </div>
                               </div>
+
+                              {currentTenant.id && (
+                              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                                 <div>
+                                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                                       Current Contract End Date
+                                    </label>
+                                    <div className="relative rounded-md shadow-sm">
+                                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                          <CalendarIcon className="h-5 w-5 text-gray-400" />
+                                       </div>
+                                       <input
+                                          type="month"
+                                          id="leaseStart"
+                                          name="leaseStart"
+                                          min={new Date().toISOString().slice(0, 7)}
+                                          required
+                                          defaultValue={modifiedLeaseEnd ? modifiedLeaseEnd.toISOString().slice(0, 7) : ""}
+                                          onKeyDown={(e) => e.preventDefault()}
+                                          onClick={(e) => (e.target as HTMLInputElement).showPicker()}
+                                          onChange={(e) => {
+                                             const val = e.target.value.split("-");
+                                             const lastDay = (new Date(Number(val[0]),Number(val[1]),0)).getDate();
+                                             setModifiedLeaseEnd(new Date(Number(val[0]),Number(val[1]) - 1,lastDay));
+                                          }}
+                                          className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pl-10 px-4 py-2 border disabled:bg-gray-200"
+                                       />
+                                    </div>
+                                 </div>
+                              </div>
+                              )}
 
                               <div>
                                  <label htmlFor="idFile" className="block text-sm font-medium text-gray-700 mb-1">

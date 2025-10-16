@@ -20,6 +20,17 @@ class FirestoreService {
     return documents
   }
 
+  async getDocumentsBy(collection: string, fieldName:string, query: string): Promise<any | null> {
+    const collectionRef = adminDb.collection(collection);
+    const querySnapshot = await collectionRef.where(fieldName, '==', query).get();
+
+    const documents: any[] = [];
+    querySnapshot.forEach(doc => {
+      documents.push(doc.data());
+    });
+    return documents
+  }
+
   async getCollection(collection: string): Promise<any | null> {
     const docRef = adminDb.collection(collection);
     const snap = await docRef.get();

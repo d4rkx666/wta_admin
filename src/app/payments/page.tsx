@@ -40,18 +40,26 @@ const PaymentsDashboard = () => {
    const { data: properties, loading: loadingProperties } = useLiveProperties();
 
    const filteredPayments = useMemo(()=>{
-      let filtered = payments.filter(payment => {
-         // Filter by status
-         if (activeTab !== 'all' && payment.status !== activeTab) return false;
-
-         // Filter by type
-         if (paymentTypeFilter !== 'all' && payment.type !== paymentTypeFilter) return false;
-
-         // Filter by date
-         if (payment.dueDate && (payment.dueDate as Timestamp).toDate().getMonth() + 1 !== monthFilter) return false;
-         if (payment.paidDate && (payment.paidDate as Timestamp).toDate().getMonth() + 1 !== monthFilter) return false;
-
-         return true;
+      let filtered = payments.filter(p => activeTab === 'all' || p.status === activeTab)
+      .filter(p => paymentTypeFilter === 'all' || p.type === paymentTypeFilter)
+      .filter(p => {
+         if(p.dueDate || p.paidDate){
+            
+            if(p.paidDate){
+               const paidDateAux = (p.paidDate as Timestamp).toDate();
+               if(paidDateAux.getFullYear() === yearFilter && paidDateAux.getMonth() + 1 === monthFilter){
+                  return true;
+               }
+            }
+            
+            if(p.dueDate){
+               const dueDateAux = (p.dueDate as Timestamp).toDate();
+               if(dueDateAux.getFullYear() === yearFilter && dueDateAux.getMonth() + 1 === monthFilter){
+                  return true;
+               }
+            }
+         }
+         return false;
       }).sort((a, b) => {
          const dateA = a.dueDate ? (a.dueDate as Timestamp).toDate().getTime() : Infinity;
          const dateB = b.dueDate ? (b.dueDate as Timestamp).toDate().getTime() : Infinity;
@@ -266,10 +274,11 @@ const PaymentsDashboard = () => {
 
                <div className="w-full md:w-auto">
                   <select
-                     value={paymentTypeFilter}
+                     value={yearFilter}
                      onChange={(e) => setYearFilter(Number(e.target.value))}
                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
+                     <option value={(new Date()).getFullYear() + 1}>{(new Date()).getFullYear() + 1}</option>
                      <option value={(new Date()).getFullYear()}>{(new Date()).getFullYear()}</option>
                      <option value={(new Date()).getFullYear() - 1}>{(new Date()).getFullYear() - 1}</option>
                   </select>
@@ -399,9 +408,16 @@ const PaymentsDashboard = () => {
                                              <br/>
                                           </>
                                        )}
+
+                                       {payment.status === 'Paid' && (
+                                          <>
+                                             <span className="ml-1">(${(payment.amount_paid - (payment.amount_discount ? payment.amount_discount : 0)).toFixed(2)})</span>
+                                             <br/>
+                                          </>
+                                       )}
                                     </span>
                                     <span className={`px-2 py-1 text-xs`}>
-                                       {payment.status === 'Marked' && (
+                                       {(payment.status === 'Marked' || payment.status === "Paid") && (
                                           <span className="ml-1">On {(payment.paidDate as Timestamp).toDate().toDateString()}</span>
                                        )}
                                     </span>

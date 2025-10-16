@@ -52,9 +52,6 @@ export default function ImageItemUI({ image, isThumbnail, onSetThumbnail, onHand
            alt="Room preview"
            className="w-full h-full object-cover"
            fill
-           onError={(e) => {
-             (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
-           }}
          />
        </div>
  

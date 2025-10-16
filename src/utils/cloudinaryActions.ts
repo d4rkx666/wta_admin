@@ -16,21 +16,28 @@ export async function getCloudinaryUrl(file_id:string, isPdf: boolean):Promise<s
    return url;
 }
 
-export async function deleteMultiCloudinaryFiles(main_folder:string):Promise<string>{
+export async function deleteMultiCloudinaryFiles(main_folder:string):Promise<boolean>{
   console.log("deleting files")
 
-  const result = await cloudinary.api.delete_resources_by_prefix(`${main_folder}/`, {
+  // deleting raw
+  const rawResult = await cloudinary.api.delete_resources_by_prefix(`${main_folder}/`, {
     type: 'private',
     resource_type: 'raw'
+  });
+
+  const rawImage = await cloudinary.api.delete_resources_by_prefix(`${main_folder}/`, {
+    type: 'private',
+    resource_type: 'image'
   });
 
   console.log("trying to delete folder: ", main_folder)
   const resultFolder = await cloudinary.api.delete_folder(main_folder);
 
-  console.log("delete result", result)
+  console.log("delete raws result", rawResult)
+  console.log("delete images result", rawImage)
   console.log("delete folder", resultFolder)
 
-  return result;
+  return true;
 }
 
 export async function insertFile(file:File, folder_idContract: string, pdf:boolean):Promise<string | null>{

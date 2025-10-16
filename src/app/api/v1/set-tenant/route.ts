@@ -11,6 +11,7 @@ import { User } from '@/types/user';
 import { getSession } from '@/lib/auth';
 import { Contract } from '@/types/contract';
 import { getSignatureFile } from '@/utils/cloudinaryActions';
+import { Timestamp } from 'firebase-admin/firestore';
 
 export async function POST(req: Request) {
   const formData = await req.formData();
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
   const tenant = JSON.parse(formData.getAll('tenant')[0] as string) as Tenant;
   const contract = JSON.parse(formData.getAll('contract')[0] as string) as Contract;
   const currentContract = JSON.parse(formData.getAll('currentContract')[0] as string) as Contract;
+  const modifiedLeaseEnd = JSON.parse(formData.getAll('modifiedLeaseEnd')[0] as string) as Date;
   const deposit = JSON.parse(formData.getAll('deposit')[0] as string) as Payment;
   const pastRents = JSON.parse(formData.getAll('pastRents')[0] as string) as Payment[];
   const futureRents = JSON.parse(formData.getAll('futureRents')[0] as string) as Payment[];
@@ -26,7 +28,7 @@ export async function POST(req: Request) {
   const additionalFile = formData.getAll('additionalFile')[0] as string
 
   // Check auth
-  if(!getSession()){
+  if(!await getSession()){
     return NextResponse.json({ success: false, message: "User not authenticated" });
   }
   
@@ -182,7 +184,81 @@ export async function POST(req: Request) {
       await firestoreService.setMultipleDocuments(dataToInsert);
     }else{ // update tenant
       const tenantToUpdate: Partial<Tenant> = {id:tenant.id, name: tenant.name, email: tenant.email, phone: tenant.phone, couple_name: tenant.couple_name};
-      const contractToUpdate: Partial<Contract> = {id: currentContract.id}
+
+      if(modifiedLeaseEnd){
+        const c = await firestoreService.getDocument("contracts", currentContract.id) as Contract;
+        const current = (c.lease_end as Timestamp).toDate();
+        const modified = new Date(modifiedLeaseEnd);
+
+        const currentMonth = current.getMonth();
+        const modifiedMonth = modified.getUTCMonth();
+
+        const currentYear = current.getFullYear();
+        const modifiedYear = modified.getFullYear();
+
+        if (currentYear === modifiedYear && currentMonth === modifiedMonth) {
+          console.log("do nothing")
+        }else if (modifiedYear < currentYear || (currentYear === modifiedYear && modifiedMonth < currentMonth)) {
+          // delete future rents
+          const allRents = await firestoreService.getDocumentsBy("payments", "contract_id", currentContract.id) as Payment[];
+          const rentsToDelete:MultipleDoc[] = allRents.filter(r => r.type === "rent" && r.status === "Pending").filter(r => {
+            const dueDate = (r.dueDate as Timestamp).toDate();
+            const dueDateMonth = dueDate.getMonth();
+            const dueDateYear = dueDate.getFullYear();
+
+            if(dueDateYear > modifiedYear || (dueDateYear === modifiedYear && dueDateMonth > modifiedMonth)){
+              return true;
+            }
+            return false;
+          }).map(r => {
+            return {
+              collection: "payments",
+              data: r,
+              docId: r.id
+            }
+          })
+
+          console.log("deleting ", rentsToDelete)
+
+          await firestoreService.deleteMultipleDocuments(rentsToDelete);
+          await firestoreService.updateDocument("contracts", currentContract.id, "lease_end", modified);
+        } else {
+          const newRents: MultipleDoc[] = [];
+          const currentRoom = await firestoreService.getDocument("rooms", currentContract.room_id) as Room;
+          let addCurrentYear = currentYear;
+          let addCurrentMonth = currentMonth + 1; // skip current one
+          while (addCurrentYear < modifiedYear || (addCurrentYear === modifiedYear && addCurrentMonth <= modifiedMonth)) {
+            const idRent = uuidv4();
+            const newRent: Partial<Payment> = {
+              id: idRent,
+              contract_id: currentContract.id,
+              type: "rent",
+              amount_payment: currentRoom.price,
+              status: "Pending",
+              is_current: false,
+              createdAt: new Date(),
+              dueDate: new Date(addCurrentYear, addCurrentMonth, 1),
+            }
+
+            newRents.push({
+              collection: "payments",
+              data: newRent,
+              docId: idRent
+            })
+
+            if (addCurrentMonth === 11) {
+              addCurrentMonth = 0;
+              addCurrentYear++;
+            } else {
+              addCurrentMonth++;
+            }
+          }
+
+          console.log(newRents)
+          await firestoreService.setMultipleDocuments(newRents);
+          await firestoreService.updateDocument("contracts", currentContract.id, "lease_end", modified);
+        }
+      }
 
       if(contractFile){
         signatureFiles.contract = await getSignatureFile(tenant.id + "/" + tenant.current_contract_id, currentContract.contract_file_id, tenant.current_contract_id);
@@ -194,7 +270,6 @@ export async function POST(req: Request) {
         signatureFiles.additional = await getSignatureFile(tenant.id + "/" + tenant.current_contract_id, currentContract.aditional_file_id, tenant.current_contract_id);
       }
       await firestoreService.setDocument("tenants", tenant.id, tenantToUpdate);
-      await firestoreService.setDocument("contracts", currentContract.id, contractToUpdate);
     }
 
     
@@ -205,7 +280,7 @@ export async function POST(req: Request) {
       await getAuth().deleteUser(userIdRollback)
     }
     return NextResponse.json(
-      { success:false, error: String(error) },
+      { success:false, message: String(error) },
       { status: 500 }
     );
   }
