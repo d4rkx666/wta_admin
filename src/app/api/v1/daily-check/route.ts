@@ -80,9 +80,11 @@ async function updateRoomsTaken() {
   const rooms = await firestoreService.getCollection("rooms") as Room[];
 
   const roomsToUpdate: Room[] = []
+  const contractsToUpdate: Contract[] = []
 
   contracts.filter(c=>c.status === "Active" || "Permanent").map(contract => {
     if (new Date() >= new Date((contract.lease_end as Timestamp).toDate())) { //check if lease has ended
+      contractsToUpdate.push(contract);
       const roomUpdate = rooms.find(room => contract.room_id === room.id); // find room
       if (roomUpdate) {
         roomsToUpdate.push(roomUpdate); // push room to update
@@ -100,6 +102,18 @@ async function updateRoomsTaken() {
       collection: "rooms",
       docId: room.id,
       data: roomToInsert
+    })
+  }
+
+  for (const contract of contractsToUpdate) {
+    const contractToInsert: Partial<Contract> = {
+      id: contract.id,
+      status: "Terminated",
+    }
+    dataToInsert.push({
+      collection: "contracts",
+      docId: contract.id,
+      data: contractToInsert
     })
   }
 
