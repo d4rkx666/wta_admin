@@ -520,15 +520,14 @@ const TenantManagement = () => {
          rents.push(newRent)
 
          // Move to the next year
-         if (currentMonth === 11) {
-            currentMonth = 0;
+         if (currentMonth === 12) {
+            currentMonth = 1;
             currentYear++;
          } else {
             currentMonth++;
          }
       }
 
-      console.log("future", rents)
       setFutureRents(rents)
    }
 
