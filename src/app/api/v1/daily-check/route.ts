@@ -19,7 +19,7 @@ export async function GET() {
     await setCurrentPayments()
 
     // set penalties for unpaid rent
-    await setPenalties();
+    //await setPenalties();
 
 
     return NextResponse.json({ success: true });
@@ -109,6 +109,7 @@ async function updateRoomsTaken() {
   }
 }
 
+/* eslint-disable */
 async function setPenalties(){
   const payments = await firestoreService.getCollection("payments") as Payment[];
 
@@ -156,3 +157,4 @@ async function setPenalties(){
     firestoreService.setMultipleDocuments(dataToInsert)
   }
 }
+/* eslint-enable */
