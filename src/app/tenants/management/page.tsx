@@ -314,6 +314,8 @@ const TenantManagement = () => {
          formData.append('contract', JSON.stringify(contract));
          formData.append('currentTenant', JSON.stringify(currentTenant));
          formData.append('deposit', JSON.stringify(depositPayment));
+         formData.append('pastRents', JSON.stringify(pastRents));
+         formData.append('futureRents', JSON.stringify(futureRents));
 
          if (contractFile) {
             formData.append('contractFile', "true");
@@ -499,8 +501,6 @@ const TenantManagement = () => {
             currentMonth++;
          }
       }
-
-      console.log("past", rents)
       setPastRents(rents)
    }
 
@@ -527,7 +527,6 @@ const TenantManagement = () => {
             currentMonth++;
          }
       }
-
       setFutureRents(rents)
    }
 

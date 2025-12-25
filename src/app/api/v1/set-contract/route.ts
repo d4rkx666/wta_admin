@@ -7,6 +7,7 @@ import { firestoreService } from '@/lib/services/firestore-service';
 import { Payment } from '@/types/payment';
 import { MultipleDoc } from '@/types/multipleDocsToInsert';
 import { getSignatureFile } from '@/utils/cloudinaryActions';
+import { Room } from '@/types/room';
 
 export async function POST(req: Request) {
   const formData = await req.formData();
@@ -16,6 +17,8 @@ export async function POST(req: Request) {
   const deposit = JSON.parse(formData.getAll('deposit')[0] as string) as Payment;
   const contractFile = formData.getAll('contractFile')[0] as string;
   const additionalFile = formData.getAll('additionalFile')[0] as string;
+  const pastRents = JSON.parse(formData.getAll('pastRents')[0] as string) as Payment[];
+  const futureRents = JSON.parse(formData.getAll('futureRents')[0] as string) as Payment[];
 
   // Check auth
   if(!getSession()){
@@ -29,6 +32,17 @@ export async function POST(req: Request) {
     const currentContract = await firestoreService.getDocument("contracts",tenant.current_contract_id) as Contract;
     currentContract.status = "Terminated";
     currentContract.is_current = false;
+
+    //Delete future rents from old contract
+    const multipleDocsToDelete: MultipleDoc[] = []
+    const payments = await firestoreService.getDocumentsBy("payments", "contract_id", tenant.current_contract_id) as Payment[];
+    payments.filter(p => p.status === "Pending").map(p => {
+      multipleDocsToDelete.push({
+        collection: "payments",
+        data: p,
+        docId: p.id
+      })
+    })
 
     contract.id = uuidv4();
     contract.tenant_id = tenant.id;
@@ -55,6 +69,46 @@ export async function POST(req: Request) {
     deposit.paidDate = new Date();
     deposit.createdAt = new Date();
 
+    const pastRentsToInsert:Partial<Payment>[] = []
+    for(const rent of pastRents){
+      if(!rent.amount_paid) return;
+      rent.id = uuidv4();
+      rent.contract_id = contract.id;
+      rent.payment_method = "Other";
+      rent.type = "rent";
+      rent.amount_payment = rent.amount_paid;
+      rent.status = "Paid";
+      rent.is_current = false;
+      rent.dueDate = new Date(rent.dueDate as Date);
+      rent.paidDate = new Date(rent.dueDate as Date);
+      rent.createdAt = new Date(Date.now());
+
+      pastRentsToInsert.push(rent)
+    }
+
+    const room:Room = await firestoreService.getDocument("rooms", contract.room_id) as Room;
+    if(!room){
+      return NextResponse.json({ success: false, message:"Room not found"});
+    }
+    
+    const futureRentsToInsert:Partial<Payment>[] = []
+    let isCurrent = true;
+    
+    for(const rent of futureRents){
+      rent.id = uuidv4();
+      rent.contract_id = contract.id;
+      rent.type = "rent";
+      rent.amount_payment = room.price;
+      rent.status = "Pending";
+      rent.is_current = isCurrent;
+      rent.dueDate = new Date(rent.dueDate as Date);
+      rent.createdAt = new Date();
+
+      isCurrent = false;
+
+      futureRentsToInsert.push(rent)
+    }
+
     const updatedTenant:Partial<Tenant> = {
       current_contract_id: contract.id
     }
@@ -79,7 +133,55 @@ export async function POST(req: Request) {
       },
     ]
 
-    await firestoreService.setMultipleDocuments(multipleDocsToInsert)
+    //Detect if there is a room change
+    if(currentContract.room_id !== contract.room_id){
+      const previousRoomToUpdate:Partial<Room> = {
+        id: currentContract.room_id,
+        available: true
+      }
+      const currentRoomToUpdate:Partial<Room> = {
+        id: contract.room_id,
+        available: false
+      }
+
+      multipleDocsToInsert.push({
+        collection: "rooms",
+        data: previousRoomToUpdate,
+        docId: currentContract.room_id
+      });
+      multipleDocsToInsert.push({
+        collection: "rooms",
+        data: currentRoomToUpdate,
+        docId: contract.room_id
+      });
+    }
+
+    // insert all rents in the transaction
+    for(const rent of pastRentsToInsert){
+      if(!rent.id) return;
+
+      const r:MultipleDoc = {
+        collection:"payments",
+        docId: rent.id,
+        data: rent,
+      }
+
+      multipleDocsToInsert.push(r);
+    }
+    for(const rent of futureRentsToInsert){
+      if(!rent.id) return;
+
+      const r:MultipleDoc = {
+        collection:"payments",
+        docId: rent.id,
+        data: rent,
+      }
+
+      multipleDocsToInsert.push(r);
+    }
+
+    await firestoreService.setMultipleDocuments(multipleDocsToInsert);
+    await firestoreService.deleteMultipleDocuments(multipleDocsToDelete);
     
     return NextResponse.json({ success: true, signatureFiles });
   } catch (error) {

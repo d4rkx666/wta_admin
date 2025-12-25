@@ -119,7 +119,7 @@ async function updateRoomsTaken() {
 
   // insert all data
   if (dataToInsert.length > 0) {
-    firestoreService.setMultipleDocuments(dataToInsert)
+    await firestoreService.setMultipleDocuments(dataToInsert);
   }
 }
 
@@ -140,6 +140,8 @@ async function setPenalties(){
         return true;
       }
     }
+    
+    return false;
     
   }).map(payment => {
     const penalty: Partial<Payment> = {
